@@ -7,7 +7,7 @@
     "@material-ui/icons": "^3.0.1",
     "emojilib": "^2.4.0",
     "fuse.js": "^3.3.0",
-    "idb": "^2.1.3",
+    "idb": "^4.0.3",
     "jsencrypt": "^3.0.0-rc.1",
     "jshashes": "^1.0.7",
     "react": "^16.6.0",

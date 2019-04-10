@@ -1,10 +1,18 @@
-import idb from 'idb';
+import { openDB } from 'idb';
 
 import { Crypto } from '../peer/crypto.js';
 import { Types } from './types.js';
 
 const _ATOMS    = 'atoms';
 const _ACCOUNTS = 'accounts';
+
+const _TYPE_IDX           = 'type';
+const _TYPE_TIMESTAMP_IDX = 'type-timestamp';
+const _TYPE_SAVED_IDX     = 'type-saved';
+
+const _TAGS_IDX           = 'tags';
+const _TAGS_TIMESTAMP_IDX = 'tags-timestamp';
+const _TAGS_SAVED_IDX     = 'tags-saved';
 
 class Account {
   constructor() {
@@ -29,84 +37,23 @@ class Account {
   }
 }
 
-class Atom {
-
-  static literalFingerprint(literal) {
-    return Crypto.fingerprintLiteral(literal);
-  }
-
-  static objectFingerprint(object) {
-    return Atom.literalFingerprint(object.serialize());
-  }
-
-  constructor() {
-    this.fingerprint = null;
-    this.object      = null;
-    this.signatures  = [];
-  }
-
-  create(object) {
-    this.object      = object;
-    this.fingerprint = Atom.objectFingerprint(this.object);
-
-    if (object.signatures !== undefined &&
-        object.signatures instanceof Set) {
-      this.signatures = Array.from(object.signatures);
-    } else {
-      this.signatures = [];
-    }
-
-  }
-
-  getLiteral() {
-    return this.object.serialize();
-  }
-
-  getObject() {
-    return this.object;
-  }
-
-  checkFingerprint() {
-    return this.fingerprint === Crypto.fingerprintObject(this.object);
-  }
-
-  checkSignature(key) {
-
-    var check = false;
-
-    this.signatures.forEach( (pair) => {
-      if (pair['key'] === key.getSignature &&
-          key.verify(this.fingerprint, pair['signature'])) {
-        check = true;
-      }
-    });
-
-    return check;
-  }
-
-  serialize() {
-    return {'fingerprint': this.fingerprint,
-            'literal':     this.object.serialize(),
-            'signatures':  this.signatures,
-          };
-  }
-
-  deserialize(obj) {
-    this.fingerprint = obj['fingerprint'];
-    this.object      = Types.deserializeWithType(obj['literal']);
-    this.signatures  = obj['signatures'];
-  }
-}
-
-
-
-class AccountStore {
+class Store {
   constructor(fingerprint) {
     this.fingerprint = fingerprint;
-    this.dbPromise = idb.open('account-' + fingerprint, 1, newdb => {
-      var atomStore = newdb.createObjectStore(_ATOMS, {keyPath: 'fingerprint'});
-      atomStore.createIndex("tags", "literal.tags", {multyEntry: true});
-      atomStore.createIndex("type", "literal.type")
+    this.db = openDB('account-' + fingerprint, 1, {
+        upgrade(newdb, oldVersion, newVersion, tx) {
+
+          var atomStore = newdb.createObjectStore(_ATOMS, {keyPath: 'fingerprint'});
+
+          atomStore.createIndex(_TYPE_IDX, "literal.type");
+          atomStore.createIndex(_TYPE_TIMESTAMP_IDX, "type_timestamp");
+          atomStore.createIndex(_TYPE_SAVED_IDX, "type_saved");
+
+          atomStore.createIndex(_TAGS_IDX, "literal.tags", {multiEntry: true});
+          atomStore.createIndex(_TAGS_TIMESTAMP_IDX, "tags_timestamp", {multiEntry: true});
+          atomStore.createIndex(_TAGS_SAVED_IDX, "tags_saved", {multiEntry: true});
+
+      }
     });
 
     this.tagCallbacks  = new Map();
@@ -114,37 +61,32 @@ class AccountStore {
   }
 
   save(object) {
-    const atom = new Atom();
-    atom.create(object);
-    return this.saveAtom(atom);
-  }
 
-  load(fingerprint) {
-    return this.loadAtom(fingerprint).then((atom) => (atom.getObject()));
-  }
+    object.setSavedTimestamp(Store.uniqueTimestamp());
 
-  saveAtom(atom) {
-    return this.dbPromise.then( (db) => {
+    const literal = Store.toStorageFormat(object);
+
+    return this.db.then( (db) => {
       const tx = db.transaction([_ATOMS], 'readwrite');
-      tx.objectStore(_ATOMS).put(atom.serialize());
+      tx.objectStore(_ATOMS).put(literal);
       return tx.complete;
     }).then((txresult) => {
 
-      if (atom.object.tags !== undefined &&
-          atom.object.tags instanceof Set) {
-        atom.object.tags.forEach(tag => {
+      if (object.tags !== undefined &&
+          object.tags instanceof Set) {
+        object.tags.forEach(tag => {
           if (this.tagCallbacks.has(tag)) {
             this.tagCallbacks.get(tag).forEach( callback => {
-              window.setTimeout(callback, 0, atom.object);
+              window.setTimeout(callback, 0, object);
             });
           }
         });
       }
 
-      if (atom.object.type !== undefined &&
-          this.typeCallbacks.has(atom.object.type)) {
-        this.typeCallbacks.get(atom.object.type).forEach( callback => {
-          window.setTimeout(callback, 0, atom.object);
+      if (object.type !== undefined &&
+          this.typeCallbacks.has(object.type)) {
+        this.typeCallbacks.get(object.type).forEach( callback => {
+          window.setTimeout(callback, 0, object);
         });
       }
 
@@ -152,43 +94,187 @@ class AccountStore {
     });
   }
 
-  loadAtom(fingerprint) {
-    return this.dbPromise.then(
+  load(fingerprint) {
+    return this.db.then(
       (db) =>
         (db.transaction([_ATOMS], 'readonly').objectStore(_ATOMS).get(fingerprint)))
                          .then(
-      (serialization) =>
-        {
-          var atom = new Atom();
-          atom.deserialize(serialization);
-          return atom;
-        }
+      (literal) => ( Store.fromStorageFormat(literal) )
     );
 
   }
 
+  loadAllByType(type, order, useRecvTime) {
+    const index = useRecvTime ? _TYPE_SAVED_IDX : _TYPE_TIMESTAMP_IDX;
+    return this.loadAllByIndex(index, type, order);
+  }
+
+  loadAllByTag(tag, order, useRecvTime) {
+    const index = useRecvTime ? _TAGS_SAVED_IDX : _TAGS_TIMESTAMP_IDX;
+    return this.loadAllByIndex(index, tag, order);
+  }
+
+  loadAllByIndex(index, value, order, start, count) {
+
+    if (order === undefined) order = 'asc';
+    if (start === undefined) start = null;
+
+    var start_value
+    var end_value;
+
+    if (order === 'asc') {
+      if (start === null) {
+        start_value = value + '_';
+      } else {
+        start_value = value + '_' + start;
+      }
+      end_value = value + '_Z';
+    } else {
+      if (start === null) {
+        start_value = value + '_Z';
+      } else {
+        start_value = value + '_' + start;
+      }
+      end_value = value + '_';
+    }
+
+    const range = IDBKeyRange.bound(start_value, end_value, true, true);
+    const direction = order === 'asc' ? 'next' : 'prev';
+
+    let result = [];
+
+    let ingestCursor = async () => {
+      let cursor = await this.db.then((db) => db.transaction([_ATOMS], 'readonly').objectStore(_ATOMS).index(index).openCursor(range, direction));
+
+      while (cursor) {
+
+        result.push(Store.fromStorageFormat(cursor.value));
+
+        cursor = await cursor.continue();
+      }
+
+    }
+
+    ingestCursor();
+
+    return result;
+
+  }
+
+  loadByTag(tag, start, order, count, useRecvTime) {
+    if (useRecvTime === undefined) {
+      useRecvTime = false;
+    }
+  }
+
+  loadByType(type, start, order, count, useRecvTime) {
+
+  }
+
   registerTypeCallback(type, callback) {
-    AccountStore._registerCallback(this.typeCallbacks, type, callback);
+    Store._registerCallback(this.typeCallbacks, type, callback);
   }
 
   registerTagCallback(tag, callback) {
-    AccountStore._registerCallback(this.tagCallbacks, tag, callback);
+    Store._registerCallback(this.tagCallbacks, tag, callback);
   }
 
-  static _defineCallback(map, key, callback) {
+  static _registerCallback(map, key, callback) {
     if (map.has(key)) {
       map.get(key).push(callback);
     } else {
       map.set(key, [callback]);
     }
   }
+
+  static toStorageFormat(object) {
+
+    var signatures;
+
+    if (object.signatures !== undefined &&
+        object.signatures instanceof Set) {
+      signatures = Array.from(object.signatures);
+    } else {
+      signatures = [];
+    }
+
+    var type_timestamp = object.timestamp;
+    var type_saved     = object.savedTimestamp;
+    var tags_timestamp = [];
+    var tags_saved     = [];
+
+    if (object.type !== undefined) {
+      if (object.timestamp !== undefined) {
+        type_timestamp = object.type + '_' + object.timestamp;
+      }
+      type_saved = object.type + '_' + object.savedTimestamp;
+    }
+
+    if (Array.isArray(object.tags)) {
+      if (object.timestamp !== undefined) {
+        tags_timestamp = object.tags.map(tag => tag + '_' + object.timestamp);
+      }
+      tags_saved = object.tags.map(tag => tag + '_' + object.savedTimestamp);
+    }
+
+
+
+    return {'fingerprint'     : object.fingerprint(),
+            'serialization'         : object.serialize(),
+            'signatures'      : signatures,
+            'saved'           : object.savedTimestamp,
+            'type_timestamp'  : type_timestamp,
+            'type_saved'      : type_saved,
+            'tags_timestamp'  : tags_timestamp,
+            'tags_saved'      : tags_saved,
+          };
+  }
+
+  static fromStorageFormat(literal) {
+
+    const object      = Types.deserializeWithType(literal['serialization']);
+
+    object.setSignatures(literal['signatures']);
+    object.setSavedTimestamp(literal['saved']);
+
+    return object;
+  }
+
+  static _pad = (xs, n) => {
+    while (xs.length < n) {
+      xs = '0' + xs;
+    }
+
+    return xs;
+  }
+
+  static currentTimestamp() {
+    return 'T' + Store._pad(Date.now().toString(16), 11);
+  }
+
+  static uniqueTimestamp() {
+    const random = Store._pad(Math.floor(Math.random()*0xFFFFFFFFFF).toString(16), 10);
+    return Store.currentTimestamp() + random;
+  }
+
+  static literalFingerprint(literal) {
+    return Crypto.fingerprintLiteral(literal);
+  }
+
+  static objectFingerprint(object) {
+    return Store.literalFingerprint(object.serialize());
+  }
+
+
 }
 
 class StorageManager {
   constructor() {
     this.stores = new Map();
-    this.directory = idb.open('account-directory', 1, (db) => {
-      db.createObjectStore(_ACCOUNTS, {keyPath: 'fingerprint'});
+    this.directory = openDB('account-directory', 1, {
+        upgrade(newdb, oldVersion, newVersion, tx) {
+          newdb.createObjectStore(_ACCOUNTS, {keyPath: 'fingerprint'});
+      }
     });
   }
 
@@ -200,7 +286,7 @@ class StorageManager {
     return this.directory.then((db) => {
       const tx = db.transaction([_ACCOUNTS], 'readwrite');
       tx.objectStore(_ACCOUNTS).put(account.serialize());
-      return tx.complete.then(() => (account));
+      return tx.done.then(() => (account));
     });
   }
 
@@ -208,7 +294,7 @@ class StorageManager {
     if (this.stores.has(fingerprint)) {
       return this.stores.get(fingerprint);
     } else {
-      const store = new AccountStore(fingerprint);
+      const store = new Store(fingerprint);
       this.stores.set(fingerprint, store);
       return store;
     }
@@ -250,6 +336,8 @@ function storable(Class) {
       super(...args);
       this.tags       = new Set();
       this.signatures = [];
+      this.timestamp  = Store.uniqueTimestamp();
+      this.savedTimestamp = null;
     }
 
     setTags(iter) {
@@ -264,12 +352,12 @@ function storable(Class) {
       this.signatures = signatures;
     }
 
-    getSingatures() {
+    getSignatures() {
       return this.signatures;
     }
 
     fingerprint() {
-      return Atom.objectFingerprint(this);
+      return Store.objectFingerprint(this);
     }
 
     tag(tag) {
@@ -302,16 +390,29 @@ function storable(Class) {
       return check;
     }
 
+    getTimestamp() {
+      return this.timestamp;
+    }
+
+    getSavedTimestamp() {
+      return this.savedTimestamp;
+    }
+
+    setSavedTimestamp(savedTimestamp) {
+      this.savedTimestamp = savedTimestamp;
+    }
 
     serialize() {
       var literal = super.serialize();
-      literal['tags'] = Array.from(this.tags);
+      literal['tags']      = Array.from(this.tags);
+      literal['timestamp'] = this.timestamp;
       return literal;
     }
 
     deserialize(literal) {
       super.deserialize(literal);
-      this.tags = new Set(literal['tags']);
+      this.tags      = new Set(literal['tags']);
+      this.timestamp = literal['timestamp'];
     }
   }
 }

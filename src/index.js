@@ -9,6 +9,7 @@ import NetworkManager from './net/network.js'
 import { StorageManager, Account, Atom } from './data/storage.js';
 import IdentityKey, { IdentityManager } from './peer/identity.js';
 import { Crypto } from './peer/crypto.js';
+import { Types } from './data/types.js';
 
 const storageMgr = new StorageManager();
 const identityMgr = new IdentityManager(storageMgr);
@@ -30,12 +31,40 @@ console.log(id.fingerprint());
 
 //identityMgr.createRootIdentityKey('person', 'Santiago Bazerque');
 
+
+const fp  = "0154822362e411207089dba43b6097f3e729cade5e"	;
+const store = storageMgr.getStore(fp);
+console.log(store.loadAllByType(Types.IDENTITY_KEY()));
+
+
+//const secondary4 = root.createAuthKey({'location': 'fourth computer'});
+//secondary4.then(x => {console.log(x)});
+
+
+/*const root = identityMgr.getRootIdentity(fp)
+
+const secondary1 = root.createAuthKey({'location': 'computer'});
+secondary1.then(x => {console.log(x)});
+
+const secondary2 = root.createAuthKey({'location': 'second computer'});
+secondary2.then(x => {console.log(x)});
+
+const secondary3 = root.createAuthKey({'location': 'third computer'});
+secondary3.then(x => {console.log(x)});
+*/
+
+/*
+const root = identityMgr.getRootIdentity(fp);
+const secondary4 = root.createAuthKey({'location': 'fourth computer'});
+secondary4.then(x => {console.log(x)});
+*/
+
 /*
 var fp = null;
 
 storage.createAccount(id).then((accnt) => {
 
-  const store = new AccountStore(accnt.fingerprint);
+  const store = new Store(accnt.fingerprint);
 
   const atom = new Atom();
 

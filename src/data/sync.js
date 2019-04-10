@@ -1,4 +1,4 @@
-import idb from 'idb';
+import { openDB }from 'idb';
 import { v4 as uuid } from 'uuid';
 
 import { Crypto } from '../peer/crypto.js';
@@ -11,35 +11,48 @@ const _SYNC_TAG = 'sync';
 
 class SyncLocationBase {
   constructor() {
-    this.identity     = null;
-    this.locationName = null;
-    this.locationId   = null;
+    this.identity = null;
+    this.name     = null;
+    this.key      = null;
   }
 
-  create(identity, locationName) {
+  create(identity, name, key) {
       this.identity = identity;
-      this.locationName = locationName;
-      this.locationId   = uuid();
+      this.name     = name;
+      this.key      = key;
 
       this.type = Types.SYNC_LOCATION();
   }
 
   serialize() {
     return {
-      'identity': this.identity,
-      'locationName': this.locationName,
-      'locationId': this.locationId,
+      'identity' : this.identity,
+      'name'     : this.name,
+      'key'      : this.key,
     };
   }
 
   deserialize(obj) {
-    this.identity     = obj['identity'];
-    this.locationName = obj['locationName'];
-    this.locationId   = obj['locationId'];
+    this.identity = obj['identity'];
+    this.name     = obj['name'];
+    this.key      = obj['key'];
   }
 }
 
 const SyncLocation = storable(SyncLocationBase);
+
+class SyncDirective {
+
+}
+
+class StreamSetCheckpointBase {
+  constructor() {
+    this.admins = [];
+
+  }
+}
+
+const StreamSetCheckpoint = storable(StreamSetCheckpointBase);
 
 class SyncElementBase {
 
@@ -164,8 +177,8 @@ class SyncService {
     this.node     = node;
     this.store    = store;
 
-    this.syncdb = idb.open('sync-' + identity.fingerprint(), 1, (db) => {
-      const structStatusStore = db.createStore('struct-status', {keypath: structId});
+    this.syncdb = openDB('sync-' + identity.fingerprint(), 1, (db) => {
+      const structStatusStore = db.createStore('struct-status', {keypath: 'structId'});
       const elementStatusStore = db.createStore('element-status', {keypath: 'fingerprint'});
       const syncConfigStore   = db.createStore('config', {keypath: 'fingerprint'});
     });

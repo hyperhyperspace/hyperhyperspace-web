@@ -43,16 +43,23 @@ class AccountIdentity {
     this.root       = this.store.load(fingerprint);
   }
 
+  async getRootKey() {
+    var result = await this.root;
+    return result;
+  }
+
   createAuthKey(info) {
 
-    info['parent'] = this.root.fingerprint();
-    info['type']   = _AUTH_KEY;
+    return this.root.then(root => {
+      info['parent'] = root.fingerprint();
+      info['type']   = _AUTH_KEY;
 
-    const auth = new IdentityKey(info);
+      const auth = new IdentityKey();
+      auth.create(info);
 
-    this.store.save(auth);
+      return this.store.save(auth);
+    });
 
-    return auth.fingerprint();
   }
 
   saveKey(key) {
