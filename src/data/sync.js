@@ -45,130 +45,232 @@ class SyncDirective {
 
 }
 
-class StreamSetCheckpointBase {
-  constructor() {
-    this.admins = [];
 
-  }
-}
+// set crdt
+// single, immutable owner
+// element removal supported through tombstones
 
-const StreamSetCheckpoint = storable(StreamSetCheckpointBase);
+class SyncSetBase {
 
-class SyncElementBase {
+  static _TAG_OP_PREFIX = 'sync-set-op-';
 
-  constructor() {
-    this.sructId      = null;
-    this.predecessors = null;
-    this.content      = null;
-    this.meta         = null;
-    this.type = Types.SYNC_ELEMENT();
-
+  static _generateTag(setId) {
+    return SyncSet._TAG_OP_PREFIX + setId;
   }
 
-  serialize() {
-    return {
-      'structId'     : this.structId,
-      'predecessors' : Array.from(this.predecessors).sort(),
-      'content'      : (this.content === null ? '' : this.content),
-      'meta'         :  this.meta,
-      'type'         : this.type,
-    };
+
+  constructor(peer) {
+    this.id       = null;
+    this.owner    = null;
+
+    this.contents = null;
+
+    this.idToContents = null;
+    this.contentToIds = null;
+
+    this.removedIds   = null;
+
+    this.pendingOps = null;
+
+    this.version  = 1;
+    this.type     = Types.SYNC_SET();
   }
 
-  deserialize(literal) {
-    this.structId     = literal['sructId'];
-    this.predecessors = new Set(literal['predecessors']);
-    this.content      = (literal['content'] === '' ? null : literal['content']);
-    this.meta         = literal['meta'];
-    this.type         = literal['type'];
-  }
-}
+  create(owner) {
 
+    this.id    = uuid();
+    this.owner = owner;
 
-const SyncElement = storable(SyncElementBase);
+    this.contents     = new Set();
 
-class SyncMetaBase {
+    this.idToContents = new Map();
+    this.contentToIds = new Map();
 
-  constructor() {
-    this.protocol   = null;
-    this.policies   = null;
-    this.writers    = null;
-    this.readers    = null;
+    this.pendingOps = [];
+
+    this.removedIds   = new Set();
+
   }
 
-  init(protocol) {
-    this.protocol   = protocol;
-    this.policies   = new Set();
-    this.writers    = new Set();
-    this.readers    = new Set();
+  add(element) {
+    const op = new SyncSetOp();
+    op.makeAdd(this.id, element, new Set([uuid()]));
+
+    this._process(op);
+    this.pendingOps.push(op);
   }
 
-  setProtocol(protocol) {
-    this.protocol = protocol;
-  }
+  remove(element) {
 
-  addPolicy(policy) {
-    this.policies.add(policy);
-  }
-
-  removePolicy(policy) {
-    this.policies.delete(policy);
-  }
-
-  addWriter(writer) {
-    this.writers.add(writer);
-  }
-
-  removeWriter(writer) {
-    this.writers.remove(writer);
-  }
-
-  addReader(reader) {
-    this.readers.add(reader);
-  }
-
-  removeReader(reader) {
-    this.readers.delete(reader);
-  }
-
-  serialize() {
-    return {
-      'protocol' : this.protocol,
-      'policies' : Array.from(this.policies).sort(),
-      'writers'  : Array.from(this.writers).sort(),
-      'readers'  : Array.from(this.readers).sort(),
+    const elementIds = this.contentToIds.get(element);
+    if (elementIds !== undefined) {
+        const idsToRemove = elementIds.filter(id => ! this.removedIds.has(id));
+        if (idsToRemove.size > 0) {
+          const op = new SyncSetOp();
+          op.makeRemove(this.id, element, idsToRemove);
+          this._process(op);
+          this.pendingOps.push(op);
+        }
     }
   }
 
-  deserialize(literal) {
-    this.protocol   = literal['protocol'];
-    this.policies   = new Set(literal['policy']);
-    this.writers    = new Set(literal['writers']);
-    this.readers    = new Set(literal['readers']);
+  has(element) {
+    return this.contents.has(element);
+  }
+
+  snapshot() {
+    return new Set(this.contents);
+  }
+
+  push(store, account) {
+
+    let promises = [];
+
+    if (this.getSavedTimestamp() === null) {
+      promises.push(account.sign(this).then(() => store.save(this)));
+    }
+
+    while (this.pendingOps.size > 0) {
+      let op = this.pendingOps.shift();
+      promises.push(account.sign(this).then(() => store.save(op)));
+    }
+
+    return Promise.all(promises);
+  }
+
+  pull(store, account) {
+    return store.loadAllByTag(SyncSet._generateTag(this.id)).then( ops => {
+      ops.forEach(op => {
+        this._process(op);
+      });
+    });
+  }
+
+  subscribe(store) {
+
+  }
+
+  unsubscribe(store) {
+
+  }
+
+  _process(op) {
+
+    let element = op.getElement();
+    let elmtIds = this._getElementIds(element);
+
+    op.getIds().forEach(id => {
+      this.idToContents.set(id, element);
+      elmtIds.add(id);
+      if (op.isRemoval()) { this.removedIds.add(id); }
+    });
+
+    const survivingIds = elmtIds.filter(id => !this.removedIds.has(id));
+
+    if (survivingIds.size > 0) {
+      this.contents.add(element);
+    } else {
+      this.contents.delete(element);
+    }
+  }
+
+  _getElementIds(element) {
+    var currentElmtIds = this.contentToIds.get(element);
+    if (currentElmtIds === undefined) {
+      currentElmtIds = new Set();
+      this.contentToIds.set(element, currentElmtIds);
+    }
+    return currentElmtIds;
+  }
+
+  serialize() {
+    return {
+      'id'      : this.id,
+      'owner'   : this.owner,
+      'version' : this.version,
+      'type'    : this.type,
+    }
+  }
+
+  deserialize(obj) {
+    this.id      = obj['id'];
+    this.owner   = obj['owner'];
+    this.version = obj['version'];
+    this.type    = obj['type'];
+  }
+
+}
+
+const SyncSet = storable(SyncSetBase);
+
+class SyncSetOpBase {
+
+
+
+  static _ADD    = 'add';
+  static _REMOVE = 'remove';
+
+  constructor() {
+    this.set       = null;
+    this.op        = null;
+    this.element   = null;
+    this.ids       = null;
+
+    this.type = Types.SYNC_SET_OP();
+  }
+
+  makeAdd(set, element, ids) {
+    this._operation(set, SyncSetOp._ADD, element, ids);
+  }
+
+  makeRemove(set, element, ids) {
+    this._operation(set, SyncSetOp._REMOVE, element, ids);
+  }
+
+  isAddition() {
+    return this.op === SyncSetOp._ADD;
+  }
+
+  isRemoval() {
+    return this.op === SyncSetOp._REMOVE;
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  getIds() {
+    return this.ids;
+  }
+
+  _operation(set, op, element, ids) {
+
+    this.set     = set;
+    this.op      = op;
+    this.element = element;
+    this.ids     = ids;
+
+    this.tag(SyncSet._generateTag(set));
+  }
+
+  serialize() {
+    return {
+      'set'     : this.set,
+      'op'      : this.op,
+      'element' : this.element,
+      'ids'     : Array.from(this.ids),
+    };
+  }
+
+  deseralize(obj) {
+    this.set     = obj['set'];
+    this.op      = obj['op'];
+    this.element = obj['element'];
+    this.ids     = new Set(obj['ids']);
   }
 }
 
-const SyncMeta = storable(SyncMetaBase);
-
-class SyncStructBase {
-  constructor(syncService) {
-    this.synceService = syncService;
-    this.meta = null;
-  }
-
-  create(protocol, policies, writers, readers) {
-
-  }
-
-  update(policies, writers, readers) {
-
-  }
-
-  getContent() {
-
-  }
-
-}
+const SyncSetOp = storable(SyncSetOpBase);
 
 class SyncService {
 
@@ -287,4 +389,4 @@ class Message {
   }
 }
 
-export { SyncLocation, SyncElement };
+export { SyncLocation, SyncSet, SyncSetOp };

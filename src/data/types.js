@@ -1,16 +1,18 @@
 import IdentityKey from '../peer/identity.js';
-import { SyncLocation, SyncElement } from './sync.js';
+import { SyncLocation, SyncSet, SyncSetOp } from './sync.js';
 
 const _ACCOUNT       = 'account';
 const _IDENTITY_KEY  = 'identity-key';
 const _SYNC_LOCATION = 'sync-location';
-const _SYNC_ELEMENT  = 'sync-element';
+const _SYNC_SET      = 'sync-set';
+const _SYNC_SET_OP   = 'sync-set-op';
 
 
 class Types {
   static IDENTITY_KEY()  { return _IDENTITY_KEY; }
   static SYNC_LOCATION() { return _SYNC_LOCATION; }
-  static SYNC_ELEMENT()  { return _SYNC_ELEMENT; }
+  static SYNC_SET()      { return _SYNC_SET; }
+  static SYNC_SET_OP()   { return _SYNC_SET_OP; }
 
   static deserializeWithType(literal) {
 
@@ -21,8 +23,10 @@ class Types {
         typed = new IdentityKey();
       } else if (literal.type === _SYNC_LOCATION) {
         typed = new SyncLocation();
-      } else if (literal.type === _SYNC_ELEMENT) {
-        typed = new SyncElement();
+      } else if (literal.type === _SYNC_SET) {
+        typed = new SyncSet();
+      } else if (literal.type === _SYNC_SET_OP) {
+        typed = new SyncSetOp();
       } else {
         throw new Error("Unknown object type '" + literal.type + "'");
       }

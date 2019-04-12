@@ -62,6 +62,7 @@ class Store {
 
   save(object) {
 
+    object.setStore(this);
     object.setSavedTimestamp(Store.uniqueTimestamp());
 
     const literal = Store.toStorageFormat(object);
@@ -106,15 +107,25 @@ class Store {
 
   loadAllByType(type, order, useRecvTime) {
     const index = useRecvTime ? _TYPE_SAVED_IDX : _TYPE_TIMESTAMP_IDX;
-    return this.loadAllByIndex(index, type, order);
+    return this.loadByIndex(index, type, order);
   }
 
   loadAllByTag(tag, order, useRecvTime) {
     const index = useRecvTime ? _TAGS_SAVED_IDX : _TAGS_TIMESTAMP_IDX;
-    return this.loadAllByIndex(index, tag, order);
+    return this.loadByIndex(index, tag, order);
   }
 
-  loadAllByIndex(index, value, order, start, count) {
+  loadByType(type, start, order, count, useRecvTime) {
+    const index = useRecvTime ? _TYPE_SAVED_IDX : _TYPE_TIMESTAMP_IDX;
+    return this.loadByIndex(index, type, order, start, count);
+  }
+
+  loadByTag(tag, start, order, count, useRecvTime) {
+    const index = useRecvTime ? _TAGS_SAVED_IDX : _TAGS_TIMESTAMP_IDX;
+    return this.loadByIndex(index, tag, order, start, count);
+  }
+
+  loadByIndex(index, value, order, start, count) {
 
     if (order === undefined) order = 'asc';
     if (start === undefined) start = null;
@@ -161,16 +172,6 @@ class Store {
 
   }
 
-  loadByTag(tag, start, order, count, useRecvTime) {
-    if (useRecvTime === undefined) {
-      useRecvTime = false;
-    }
-  }
-
-  loadByType(type, start, order, count, useRecvTime) {
-
-  }
-
   registerTypeCallback(type, callback) {
     Store._registerCallback(this.typeCallbacks, type, callback);
   }
@@ -179,11 +180,30 @@ class Store {
     Store._registerCallback(this.tagCallbacks, tag, callback);
   }
 
+  deregisterTypeCallback(type, callback) {
+    Store._deregisterCallback(this.typeCallbacks, type, callback);
+  }
+
+  deregisterTagCallback(tag, callback) {
+    Store._deregisterCallback(this.tagCallbacks, tag, callback);
+  }
+
   static _registerCallback(map, key, callback) {
     if (map.has(key)) {
-      map.get(key).push(callback);
+      let arr = map.get(key);
+      if (arr.indexOf(callback) < 0) { arr.push(callback); }
     } else {
       map.set(key, [callback]);
+    }
+  }
+
+  static _deregisterCallback(map, key, callback) {
+    if (map.has(key)) {
+      let arr = map.get(key);
+      let i   = arr.indexOf(callback);
+      if (i >= 0) {
+        arr.splice(i, 1);
+      }
     }
   }
 
@@ -220,7 +240,7 @@ class Store {
 
 
     return {'fingerprint'     : object.fingerprint(),
-            'serialization'         : object.serialize(),
+            'serialization'   : object.serialize(),
             'signatures'      : signatures,
             'saved'           : object.savedTimestamp,
             'type_timestamp'  : type_timestamp,
@@ -236,6 +256,8 @@ class Store {
 
     object.setSignatures(literal['signatures']);
     object.setSavedTimestamp(literal['saved']);
+
+    object.setStore(this);
 
     return object;
   }
@@ -255,6 +277,10 @@ class Store {
   static uniqueTimestamp() {
     const random = Store._pad(Math.floor(Math.random()*0xFFFFFFFFFF).toString(16), 10);
     return Store.currentTimestamp() + random;
+  }
+
+  static parseUniqueTimestamp(unique) {
+    return parseInt(unique.substring(1,12), 16);
   }
 
   static literalFingerprint(literal) {
@@ -334,10 +360,19 @@ function storable(Class) {
   return class extends Class {
     constructor(...args) {
       super(...args);
+      this.store      = null;
       this.tags       = new Set();
       this.signatures = [];
       this.timestamp  = Store.uniqueTimestamp();
-      this.savedTimestamp = null;
+      this.savedTimestamp   = null;
+    }
+
+    setStore(store) {
+      this.store = store;
+    }
+
+    getStore() {
+      return this.store;
     }
 
     setTags(iter) {

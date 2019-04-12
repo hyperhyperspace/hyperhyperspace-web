@@ -70,6 +70,11 @@ class AccountIdentity {
     return this.store.load(fingerprint);
   }
 
+  sign(key, object) {
+    return this.store.load(key).then(key => {
+      object.sign(key);
+    })
+  }
 
   isKnown(fingerprint) {
     // ??
