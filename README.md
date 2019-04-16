@@ -1,4 +1,5 @@
 The Hyper Hyper Space webapp
+============================
 
 The aim of this project is to create open source peer-to-peer user-facing applications that work *entirely* within the browser, using IndexedDB for storage, WebRTC for peer communications and cryptographic user identities.
 
