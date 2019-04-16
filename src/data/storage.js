@@ -1,6 +1,7 @@
 import { openDB } from 'idb';
 
 import { Crypto } from '../peer/crypto.js';
+import IdentityKey from '../peer/identity.js';
 import { Types } from './types.js';
 
 const _ATOMS    = 'atoms';
@@ -60,7 +61,26 @@ class Store {
     this.typeCallbacks = new Map();
   }
 
-  save(object) {
+  save(object, keys) {
+    if (keys === undefined) {
+      return this.doSave(object);
+    } else {
+
+      const promises = [];
+      keys.forEach(key => {
+        if (typeof key === 'object' && key instanceof IdentityKey) {
+          object.sign(key);
+        } else if (typeof key === 'string') {
+          promises.push(this.load(key).then(key => object.sign(key)));
+        }
+      });
+
+      return Promise.all(promises).then(() => this.doSave());
+
+    }
+  }
+
+  doSave(object) {
 
     object.setStore(this);
     object.setSavedTimestamp(Store.uniqueTimestamp());
@@ -100,7 +120,7 @@ class Store {
       (db) =>
         (db.transaction([_ATOMS], 'readonly').objectStore(_ATOMS).get(fingerprint)))
                          .then(
-      (literal) => ( Store.fromStorageFormat(literal) )
+      (literal) => ( literal === undefined ? undefined : Store.fromStorageFormat(literal) )
     );
 
   }

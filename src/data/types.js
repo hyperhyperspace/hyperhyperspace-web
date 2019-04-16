@@ -1,6 +1,6 @@
 import IdentityKey from '../peer/identity.js';
-import { SyncLocation, SyncSet, SyncSetOp } from './sync.js';
-
+import { SyncLocation } from './sync.js';
+import { SyncSet, SyncSetOp } from './collections/set.js';
 const _ACCOUNT       = 'account';
 const _IDENTITY_KEY  = 'identity-key';
 const _SYNC_LOCATION = 'sync-location';

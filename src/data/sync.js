@@ -5,294 +5,137 @@ import { Crypto } from '../peer/crypto.js';
 import { storable } from './storage.js';
 import { Types } from './types.js';
 
-const _LOCATIONS = 'locations';
-
-const _SYNC_TAG = 'sync';
+import { SyncSet } from './collections/set.js';
 
 class SyncLocationBase {
   constructor() {
-    this.identity = null;
-    this.name     = null;
-    this.key      = null;
+    this.root = null;
+    this.name = null;
+    this.key  = null;
   }
 
-  create(identity, name, key) {
-      this.identity = identity;
-      this.name     = name;
-      this.key      = key;
+  create(root, name, key) {
+      this.root = root;
+      this.name = name;
+      this.key  = key;
 
       this.type = Types.SYNC_LOCATION();
   }
 
   serialize() {
     return {
-      'identity' : this.identity,
-      'name'     : this.name,
-      'key'      : this.key,
+      'root' : this.root,
+      'name' : this.name,
+      'key'  : this.key,
     };
   }
 
   deserialize(obj) {
-    this.identity = obj['identity'];
-    this.name     = obj['name'];
-    this.key      = obj['key'];
+    this.root = obj['root'];
+    this.name = obj['name'];
+    this.key  = obj['key'];
   }
 }
 
 const SyncLocation = storable(SyncLocationBase);
 
-class SyncDirective {
+class SyncDirectiveBase {
 
-}
-
-
-// set crdt
-// single, immutable owner
-// element removal supported through tombstones
-
-class SyncSetBase {
-
-  static _TAG_OP_PREFIX = 'sync-set-op-';
-
-  static _generateTag(setId) {
-    return SyncSet._TAG_OP_PREFIX + setId;
-  }
-
-
-  constructor(peer) {
-    this.id       = null;
-    this.owner    = null;
-
-    this.contents = null;
-
-    this.idToContents = null;
-    this.contentToIds = null;
-
-    this.removedIds   = null;
-
-    this.pendingOps = null;
-
-    this.version  = 1;
-    this.type     = Types.SYNC_SET();
-  }
-
-  create(owner) {
-
-    this.id    = uuid();
-    this.owner = owner;
-
-    this.contents     = new Set();
-
-    this.idToContents = new Map();
-    this.contentToIds = new Map();
-
-    this.pendingOps = [];
-
-    this.removedIds   = new Set();
-
-  }
-
-  add(element) {
-    const op = new SyncSetOp();
-    op.makeAdd(this.id, element, new Set([uuid()]));
-
-    this._process(op);
-    this.pendingOps.push(op);
-  }
-
-  remove(element) {
-
-    const elementIds = this.contentToIds.get(element);
-    if (elementIds !== undefined) {
-        const idsToRemove = elementIds.filter(id => ! this.removedIds.has(id));
-        if (idsToRemove.size > 0) {
-          const op = new SyncSetOp();
-          op.makeRemove(this.id, element, idsToRemove);
-          this._process(op);
-          this.pendingOps.push(op);
-        }
-    }
-  }
-
-  has(element) {
-    return this.contents.has(element);
-  }
-
-  snapshot() {
-    return new Set(this.contents);
-  }
-
-  push(store, account) {
-
-    let promises = [];
-
-    if (this.getSavedTimestamp() === null) {
-      promises.push(account.sign(this).then(() => store.save(this)));
-    }
-
-    while (this.pendingOps.size > 0) {
-      let op = this.pendingOps.shift();
-      promises.push(account.sign(this).then(() => store.save(op)));
-    }
-
-    return Promise.all(promises);
-  }
-
-  pull(store, account) {
-    return store.loadAllByTag(SyncSet._generateTag(this.id)).then( ops => {
-      ops.forEach(op => {
-        this._process(op);
-      });
-    });
-  }
-
-  subscribe(store) {
-
-  }
-
-  unsubscribe(store) {
-
-  }
-
-  _process(op) {
-
-    let element = op.getElement();
-    let elmtIds = this._getElementIds(element);
-
-    op.getIds().forEach(id => {
-      this.idToContents.set(id, element);
-      elmtIds.add(id);
-      if (op.isRemoval()) { this.removedIds.add(id); }
-    });
-
-    const survivingIds = elmtIds.filter(id => !this.removedIds.has(id));
-
-    if (survivingIds.size > 0) {
-      this.contents.add(element);
-    } else {
-      this.contents.delete(element);
-    }
-  }
-
-  _getElementIds(element) {
-    var currentElmtIds = this.contentToIds.get(element);
-    if (currentElmtIds === undefined) {
-      currentElmtIds = new Set();
-      this.contentToIds.set(element, currentElmtIds);
-    }
-    return currentElmtIds;
-  }
-
-  serialize() {
-    return {
-      'id'      : this.id,
-      'owner'   : this.owner,
-      'version' : this.version,
-      'type'    : this.type,
-    }
-  }
-
-  deserialize(obj) {
-    this.id      = obj['id'];
-    this.owner   = obj['owner'];
-    this.version = obj['version'];
-    this.type    = obj['type'];
-  }
-
-}
-
-const SyncSet = storable(SyncSetBase);
-
-class SyncSetOpBase {
-
-
-
-  static _ADD    = 'add';
-  static _REMOVE = 'remove';
+  static ACTION_RECEIVE = 'receive';
+  static ACTION_SEND    = 'send';
 
   constructor() {
-    this.set       = null;
-    this.op        = null;
-    this.element   = null;
-    this.ids       = null;
-
-    this.type = Types.SYNC_SET_OP();
+    this.remoteIdentity = null;
+    this.tags           = null;
+    this.types          = null;
+    this.action         = null;
   }
 
-  makeAdd(set, element, ids) {
-    this._operation(set, SyncSetOp._ADD, element, ids);
+  createSendDirective(toWho, tags, types) {
+    this.remoteIdentity = toWho;
+    this.tags = new Set(tags);
+    this.types = new Set(types);
+    this.action = SyncDirective.ACTION_SEND;
   }
 
-  makeRemove(set, element, ids) {
-    this._operation(set, SyncSetOp._REMOVE, element, ids);
-  }
-
-  isAddition() {
-    return this.op === SyncSetOp._ADD;
-  }
-
-  isRemoval() {
-    return this.op === SyncSetOp._REMOVE;
-  }
-
-  getElement() {
-    return this.element;
-  }
-
-  getIds() {
-    return this.ids;
-  }
-
-  _operation(set, op, element, ids) {
-
-    this.set     = set;
-    this.op      = op;
-    this.element = element;
-    this.ids     = ids;
-
-    this.tag(SyncSet._generateTag(set));
+  createReceiveDirective(fromWho, tags, types) {
+    this.remoteIdentity = fromWho;
+    this.tags = new Set(tags);
+    this.types = new Set(types);
+    this.action = SyncDirective.ACTION_RECEIVE;
   }
 
   serialize() {
     return {
-      'set'     : this.set,
-      'op'      : this.op,
-      'element' : this.element,
-      'ids'     : Array.from(this.ids),
+      'remote' : this.remoteIdentity,
+      'tags'           : Array.from(this.tags),
+      'types'          : Array.from(this.types),
+      'action'         : this.action,
     };
   }
 
-  deseralize(obj) {
-    this.set     = obj['set'];
-    this.op      = obj['op'];
-    this.element = obj['element'];
-    this.ids     = new Set(obj['ids']);
+  deserialize(obj) {
+    this.remoteIdentity = obj['remote'];
+    this.tags           = new Set(obj['tags']);
+    this.types          = new Set(obj['types']);
+    this.action         = obj['action'];
   }
 }
 
-const SyncSetOp = storable(SyncSetOpBase);
+const SyncDirective = storable(SyncDirectiveBase);
+
 
 class SyncService {
+
+  static _LOCATIONS_TAG  = 'sync-locations-';
+  static _DIRECTIVES_TAG = 'sync-directives-';
 
   constructor(identity, node, store) {
     this.identity = identity;
     this.node     = node;
     this.store    = store;
 
-    this.syncdb = openDB('sync-' + identity.fingerprint(), 1, (db) => {
-      const structStatusStore = db.createStore('struct-status', {keypath: 'structId'});
-      const elementStatusStore = db.createStore('element-status', {keypath: 'fingerprint'});
-      const syncConfigStore   = db.createStore('config', {keypath: 'fingerprint'});
-    });
+    this.location = null;
+
+    this.locations  = null;
+    this.directives = null;
+
+    this.locationStatus = null;
   }
 
-  createStruct(flags, identities) {
+  openLocation(location) {
+    this.syncdb = openDB('sync-' + location.fingerprint(), 1, (db) => {
+      const deliveryStatusStore = db.createStore('delivery-status', {keypath: 'deliveryKey'});
+      const locationStatusStore   = db.createStore('location-status', {keypath: 'fingerprint'});
+    });
 
+    this.location  = this.store.load(location);
+
+    this.locations  = SyncService._loadSet(this.store, SyncService._LOCATIONS_TAG, location.root);
+    this.directives = SyncService._loadSet(this.store, SyncService._DIRECTIVES_TAG, location.root);
+
+    this.locationStatus = new Map();
+
+    return Promise.all([this.syncdb, this.location, this.locations, this.directives]);
+  }
+
+  addDirective() {
+
+  }
+
+  removeDirective() {
+    
+  }
+
+  static _loadSet(store, tag, root) {
+    return store.loadByTag(tag + root, 0, 'desc', 1, false)
+                .then(locSets => locSets[0]);
   }
 
 }
 
 class SyncManager {
+
   constructor(identityManager, networkManager, storageManager) {
     this.identityManager = identityManager;
     this.networkManager  = networkManager;
@@ -305,13 +148,37 @@ class SyncManager {
     });*/
   }
 
-  createSyncLocation(identityKey, locationName) {
+
+
+  createConfig(root) {
+    const locations  = new SyncSet();
+    locations.tag(SyncService._LOCATIONS_TAG + root);
+    const directives = new SyncSet();
+    directives.tag(SyncService._DIRECTIVES_TAG + root);
+
+    const store = this.storageManager.getStore(root);
+
+    const saves = [store.save(locations, [root]), store.save(directives, [root])];
+
+    return Promise.all(saves);
+  }
+
+  createLocation(root, locationName) {
     const location = new SyncLocation();
 
-    location.create(identityKey.fingerprint(), locationName);
+    location.create(root, locationName);
 
-    const store = this.storageManager.getStore(identityKey.fingerprint());
-    return store.save(location, [identityKey]);
+    const store = this.storageManager.getStore(root);
+    const account = this.identityManger.getRootIdentity(root);
+
+    const saveLoc = store.save(location, [root]);
+    const locSet  = SyncService._loadSet(store, SyncService._LOCATIONS_TAG, root);
+
+    return Promise.all([saveLoc, locSet]).then(results => {
+      const locSet = results[1];
+      locSet.add(location.fingerprint());
+      return locSet.flush(store, account);
+    });
   }
 
   startSyncService(identity, location) {
@@ -389,4 +256,4 @@ class Message {
   }
 }
 
-export { SyncLocation, SyncSet, SyncSetOp };
+export { SyncLocation };

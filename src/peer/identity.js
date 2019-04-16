@@ -77,7 +77,7 @@ class AccountIdentity {
   }
 
   isKnown(fingerprint) {
-    // ??
+    return this.store.load(fingerprint).then(key => (key !== undefined));
   }
 
 }
@@ -98,8 +98,6 @@ class IdentityKeyBase {
     this.key  = null;
     this.info = null;
     this.type = Types.IDENTITY_KEY();
-
-    this._fingerprint = null;
   }
 
   // info is meant to be the definition of what this key is for
