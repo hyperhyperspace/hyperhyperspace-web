@@ -7,7 +7,7 @@ class NetworkManager {
     this.nodes = new Map();
   }
 
-  activateNode(endpoint) {
+  getNetworkNode(endpoint) {
     if (this.nodes.has(endpoint.url())) {
       return this.nodes.get(endpoint.url());
     } else {
@@ -74,4 +74,4 @@ class NetworkNode {
 
 }
 
-export default NetworkManager;
+export { NetworkManager };

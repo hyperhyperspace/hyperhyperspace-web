@@ -1,5 +1,6 @@
 import JSEncrypt from 'jsencrypt';
 import Hashes from 'jshashes';
+import { v4 as uuid } from 'uuid';
 
 class KeyPair {
   constructor(bits) {
@@ -79,8 +80,21 @@ class KeyPair {
     return this.crypto.verify(text, signature, this.SHA256hex);
   }
 
-  isPrivate() {
+  hasPrivateKey() {
     return this.privateKey !== null;
+  }
+
+  generateSignedId() {
+    const uuid = uuid();
+    const sig  = this.sign(uuid + '-' + this.getHash());
+    return uuid + '/' + sig;
+  }
+
+  checkSignedId(id) {
+    const parts = id.split('/');
+    const uuid = id[0];
+    const sig  = id[1];
+    return this.verify(uuid + '-' + this.getHash(), sig);
   }
 
   serialize() {

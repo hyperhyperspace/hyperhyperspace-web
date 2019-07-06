@@ -4,15 +4,23 @@ import './index.css';
 import App from './App';
 import * as serviceWorker from './serviceWorker';
 
-import LinkupManager, { Endpoint} from './net/linkup.js';
-import NetworkManager from './net/network.js'
-import { StorageManager, Account, Atom } from './data/storage.js';
-import IdentityKey, { IdentityManager } from './peer/identity.js';
-import { Crypto } from './peer/crypto.js';
-import { Types } from './data/types.js';
+import { WebsocketLinkupConnection } from './core/net/linkup.js';
+
+import { LinkupManager, Endpoint} from './core/net/linkup.js';
+import { NetworkManager } from './core/net/network.js'
+import { StorageManager, Account, Atom } from './core/data/storage.js';
+import { IdentityManager, IdentityKey } from './core/peer/identity.js';
+import { Crypto } from './core/peer/crypto.js';
+import { Types } from './core/data/types.js';
+
+import { PeerManager } from './core/peer/peering.js';
 
 const storageMgr = new StorageManager();
 const identityMgr = new IdentityManager(storageMgr);
+
+//let peerm = new PeerManager();
+
+//peerm.createAccount('person', 'Santiago Bazerque');
 
 /*
 const id = new IdentityKey();
@@ -27,21 +35,23 @@ id.tag('un_tag');
 console.log(id.serialize());
 console.log(id.fingerprint());
 */
-//testNetworking();
+
+testNetworking();
+//testLinkup();
 
 //identityMgr.createRootIdentityKey('person', 'Santiago Bazerque');
 
 
-const fp  = "0154822362e411207089dba43b6097f3e729cade5e"	;
-const store = storageMgr.getStore(fp);
-console.log(store.loadAllByType(Types.IDENTITY_KEY()));
+//const fp  = "0154822362e411207089dba43b6097f3e729cade5e"	;
+//const store = storageMgr.getStore(fp);
+//console.log(store.loadAllByType(Types.IDENTITY_KEY()));
 
 
 //const secondary4 = root.createAuthKey({'location': 'fourth computer'});
 //secondary4.then(x => {console.log(x)});
 
 
-/*const root = identityMgr.getRootIdentity(fp)
+/*const root = identityMgr.getIdentityNode(fp)
 
 const secondary1 = root.createAuthKey({'location': 'computer'});
 secondary1.then(x => {console.log(x)});
@@ -54,7 +64,7 @@ secondary3.then(x => {console.log(x)});
 */
 
 /*
-const root = identityMgr.getRootIdentity(fp);
+const root = identityMgr.getIdentityNode(fp);
 const secondary4 = root.createAuthKey({'location': 'fourth computer'});
 secondary4.then(x => {console.log(x)});
 */
@@ -103,17 +113,22 @@ serviceWorker.unregister();
 
 
 function testNetworking() {
+
   var linkup1 = new LinkupManager();
   var linkup2 = new LinkupManager();
 
-  var endpoint1 = new Endpoint('wss://mypeer.net', 'peer1');
-  var endpoint2 = new Endpoint('wss://mypeer.net', 'peer2');
+
+  var endpoint1 = new Endpoint('ws://localhost:8765', 'peer1');
+  var endpoint2 = new Endpoint('ws://localhost:8765', 'peer2');
+
+  //var endpoint1 = new Endpoint('wss://mypeer.net', 'peer1');
+  //var endpoint2 = new Endpoint('wss://mypeer.net', 'peer2');
 
   var network1  = new NetworkManager(linkup1);
   var network2  = new NetworkManager(linkup2);
 
-  var node1 = network1.activateNode(endpoint1);
-  var node2 = network2.activateNode(endpoint2);
+  var node1 = network1.getNetworkNode(endpoint1);
+  var node2 = network2.getNetworkNode(endpoint2);
 
   node1.setConnectionCallback((conn) => {
       console.log('peer1 established a connection!');
@@ -136,7 +151,9 @@ function testNetworking() {
   node1.start();
   node2.start();
 
-  node2.open('test call', endpoint1);
+  window.setTimeout(() => {
+    node2.open('test call', endpoint1);
+  }, 3000);
 }
 
 function benchmarkCrypto() {
@@ -195,4 +212,71 @@ function benchmarkCrypto() {
   t1 = performance.now();
 
   console.log('hashed in ' + (t1 - t0) + ' millis');
+}
+
+function testLinkup() {
+
+  console.log('start test');
+
+  var conn1 = new WebsocketLinkupConnection('wss://mypeer.net');
+  var listener1 = conn1.getListener('/santi');
+  //conn1.listen('/santi');
+
+
+  listener1.setDefaultCallback(
+    function(channel, msg) {
+      console.log('on channel ' + channel + ': ' + msg);
+    });
+
+  listener1.registerCallback(
+    'test',
+    function(msg) {
+      console.log(msg + ' received on test for /santi');
+    });
+
+/*var caller = new LocalLinkupCaller('pepe');*/
+  var conn2 = new WebsocketLinkupConnection('wss://mypeer.net');
+
+  var listener2 = conn2.getListener('/pepe');
+  //conn2.listen('/pepe');
+
+  listener2.setDefaultCallback((callId, data) => {
+    console.log('call id ' + callId + ' sent this to pepe: ' + data);
+  });
+
+  listener2.registerCallback('test', (msg) => console.log(msg + ' received on test for /pepe'));
+
+
+  var listener21 = conn2.getListener('/papa');
+
+  listener21.setDefaultCallback((callId, data) => console.log('got message for papa: ' + data));
+//window.setTimeout(() => {
+
+
+
+  window.setTimeout(() => {
+
+    var caller2 = conn2.getCaller('/santi', new Endpoint('wss://mypeer.net', '/pepe'));
+    caller2.send('test', 'hola santi, soy pepin');
+    caller2.send('wrongchannel', 'this is a stray message');
+
+    var caller1 = conn1.getCaller('/pepe', new Endpoint('wss://mypeer.net', '/santi'));
+
+    caller1.send('test', 'hola pepin, soy santi');
+    caller1.send('wrongchannel2', 'this is another stray message');
+
+    caller2.send('test', 'second test');
+    caller2.send('test', 'third test');
+
+    caller1.send('test', 'second failed test');
+
+    var caller11 = conn1.getCaller('/papa',  new Endpoint('wss://mypeer.net', '/santi'));
+    caller11.send('testo', 'hi PAPA');
+
+    console.log('end test');
+
+  }, 3000);
+  //}, 3);
+
+
 }

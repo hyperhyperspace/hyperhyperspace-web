@@ -13,7 +13,7 @@ class WebRTCConnection {
 
   constructor(callId, readyCallback) {
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.DEBUG());
+    this.logger.setLevel(Logger.TRACE());
 
     this.localCallId  = callId;
     this.remoteCallId = null;
