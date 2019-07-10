@@ -1,13 +1,14 @@
 import { openDB } from 'idb';
 
+import { Account, AccountInstance } from '../peer/accounts.js';
 import { Crypto } from '../peer/crypto.js';
 import { Identity, IdentityKey } from '../peer/identity.js';
 import { Types } from './types.js';
 
 import Timestamps from '../util/timestamps.js';
 
-const _ATOMS    = 'atoms';
-const _ACCOUNTS = 'accounts';
+const _OBJECTS   = 'objects';
+const _INSTANCES = 'instances';
 
 const _TYPE_IDX           = 'type';
 const _TYPE_TIMESTAMP_IDX = 'type-timestamp';
@@ -22,36 +23,13 @@ const _CYCLIC_DEP_ERROR   = 'cyclic-dep-error';
 const _FINGERPRINT_ERROR  = 'fingerprint-errpr';
 const _SIGNATURE_ERROR    = 'signature-error';
 
-class Account {
-  constructor() {
-    this.fingerprint  = null;
-    this.info         = null;
-  }
-
-  fromIdentityKey(id) {
-    this.info        = id.getInfo();
-    this.fingerprint = id.fingerprint();
-  }
-
-  serialize() {
-    return {'fingerprint' : this.fingerprint,
-            'info'        : this.info,
-           };
-  }
-
-  deserialize(obj) {
-    this.fingerprint = obj['fingerprint'];
-    this.info = obj['info'];
-  }
-}
-
 class Store {
-  constructor(fingerprint) {
-    this.fingerprint = fingerprint;
-    this.db = openDB('account-' + fingerprint, 1, {
+  constructor(accountInstanceFP) {
+    this.accountInstanceFP = accountInstanceFP;
+    this.db = openDB('account-instance-' + accountInstanceFP, 1, {
         upgrade(newdb, oldVersion, newVersion, tx) {
 
-          var atomStore = newdb.createObjectStore(_ATOMS, {keyPath: 'fingerprint'});
+          var atomStore = newdb.createObjectStore(_OBJECTS, {keyPath: 'fingerprint'});
 
           atomStore.createIndex(_TYPE_IDX, "literal.type");
           atomStore.createIndex(_TYPE_TIMESTAMP_IDX, "type_timestamp");
@@ -68,39 +46,34 @@ class Store {
     this.typeCallbacks = new Map();
   }
 
-  signAndSave(object, identities) {
-    if (identities === undefined) {
-      return this.save(object);
-    } else {
-
-      const sig_ops = [];
-      identities.forEach(idfp => {
-        sig_ops.push(this.load(idfp).then(id => {
-          this.load(id.getIdentityKeyFingerprint())
-              .then(key => object.sign(key));
-        }));
-      });
-
-      return Promise.all(sig_ops).then(() => this.save(object));
-
-    }
+  getAccountInstanceFP() {
+    return this.accountInstanceFP;
   }
 
   save(object) {
+    return this.saveOnce(object, {});
+  }
+
+  saveOnce(object, savePromises) {
 
     let saveDeps = []
 
     Object.values(object.dependencies).forEach(dep => {
-      saveDeps.append(this.save(dep));
+      if (!(dep.fingerprint() in savePromises)) {
+        savePromises[dep.fingerprint()] = this.saveOnce(dep, savePromises);
+      }
+      saveDeps.push(savePromises[dep.fingerprint()]);
+
     });
 
     Object.values(object.keys).forEach(key => {
-      saveDeps.append(this.save(key));
+      if (!(key.fingerprint() in savePromises)) {
+        savePromises[key.fingerprint()] = this.saveOnce(key, savePromises);
+      }
+      saveDeps.push(savePromises[key.fingerprint()]);
     });
 
     return Promise.all(saveDeps).then(() => {
-
-      var objectSave = null;
 
       if (object.isUnsaved()) {
 
@@ -110,8 +83,8 @@ class Store {
 
         const literal = Store.toStorageFormat(object);
         return this.db.then( (db) => {
-          const tx = db.transaction([_ATOMS], 'readwrite');
-          tx.objectStore(_ATOMS).put(literal);
+          const tx = db.transaction([_OBJECTS], 'readwrite');
+          tx.objectStore(_OBJECTS).put(literal);
           return tx.done;
         }).then(() => {
 
@@ -161,7 +134,7 @@ class Store {
   loadStorageLiteral(fingerprint) {
     return this.db.then(
       (db) =>
-        (db.transaction([_ATOMS], 'readonly').objectStore(_ATOMS).get(fingerprint))
+        (db.transaction([_OBJECTS], 'readonly').objectStore(_OBJECTS).get(fingerprint))
     );
   }
 
@@ -197,7 +170,7 @@ class Store {
                   }
                   return null;
                 });
-            keysToLoad.append(keyLoads[keyfp]);
+            keysToLoad.push(keyLoads[keyfp]);
          }
        });
 
@@ -222,7 +195,7 @@ class Store {
          if (!(depfp in dependencyLoads)) {
            dependencyLoads[depfp] = this.loadWithDependencies(depfp, new Set(parents), this.loadStorageLiteral(depfp), dependencyLoads, keyLoads, external);
          }
-         toLoad.append(dependencyLoads[depfp]);
+         toLoad.push(dependencyLoads[depfp]);
        });
 
       let findDeps = Promise.all(toLoad).then(loaded => {
@@ -279,7 +252,7 @@ class Store {
     let sigChecks = [];
     object.getSignatories().forEach(
       (identityfp) => {
-        sigChecks.append(
+        sigChecks.push(
           this.loadWithDependencies(identityfp, new Set(parents), this.loadStorageLiteral(identityfp), deps, keys, external)
               .then(identity => {
                 let signature = object.getSignature(identityfp);
@@ -346,34 +319,34 @@ class Store {
     const range = IDBKeyRange.bound(start_value, end_value, true, true);
     const direction = order === 'asc' ? 'next' : 'prev';
 
-    let result = [];
+
 
     let ingestCursor = async () => {
+
+      let result = [];
 
       let deps = {};
       let keys = {};
       let external = {};
       let done = new Set();
 
-      let cursor = await this.db.then((db) => db.transaction([_ATOMS], 'readonly').objectStore(_ATOMS).index(index).openCursor(range, direction));
+      let cursor = await this.db.then((db) => db.transaction([_OBJECTS], 'readonly').objectStore(_OBJECTS).index(index).openCursor(range, direction));
 
       while (cursor) {
 
         let literal = cursor.value;
         let serial = Store.toSerialization(literal);
-        deps[literal['fingerprint']] =
-
-        result.push(this.loadWithDependencies(literal['fingerprint'], new Set(), Promise.resolved(literal), deps, keys, external));
+        let loadPromise = this.loadWithDependencies(literal['fingerprint'], new Set(), Promise.resolve(literal), deps, keys, external);
+        deps[literal['fingerprint']] = loadPromise;
+        result.push(loadPromise);
 
         cursor = await cursor.continue();
       }
 
+      return result;
     }
 
-    ingestCursor();
-
-    return Promise.all(result);
-
+    return ingestCursor().then(result => Promise.all(result));
   }
 
   registerTypeCallback(type, callback) {
@@ -425,13 +398,10 @@ class Store {
       type_saved = object.type + '_' + object.savedTimestamp;
     }
 
-    if (Array.isArray(object.tags)) {
-      if (object.timestamp !== undefined) {
-        tags_timestamp = object.tags.map(tag => tag + '_' + object.timestamp);
-      }
-      tags_saved = object.tags.map(tag => tag + '_' + object.savedTimestamp);
+    if (object.timestamp !== undefined) {
+      tags_timestamp = Array.from(object.tags).map(tag => tag + '_' + object.timestamp);
     }
-
+    tags_saved = Array.from(object.tags).map(tag => tag + '_' + object.savedTimestamp);
 
 
     return {'fingerprint'     : object.fingerprint(),
@@ -460,8 +430,21 @@ class Store {
     return Crypto.fingerprintLiteral(literal);
   }
 
-  static objectFingerprint(object) {
-    return Store.literalFingerprint(object.serialize());
+  static objectFingerprint(object, extra) {
+
+    let serial = object.serialize();
+
+    if (extra !== undefined) {
+      for (let prop in extra) {
+        serial[prop] = extra[prop];
+      }
+    }
+
+    if ('signatures' in serial) {
+      serial['signatures'] = Object.keys(serial['signatures']).sort();
+    }
+
+    return Store.literalFingerprint(serial);
   }
 
   static isMissingDepError(error) {
@@ -479,83 +462,33 @@ class Store {
 
 }
 
-class StorageManager {
-  constructor() {
-    this.stores = new Map();
-    this.directory = openDB('account-directory', 1, {
-        upgrade(newdb, oldVersion, newVersion, tx) {
-          newdb.createObjectStore(_ACCOUNTS, {keyPath: 'fingerprint'});
-      }
-    });
-  }
-
-  createStore(masterKey) {
-    var account = new Account();
-
-    account.fromIdentityKey(masterKey);
-
-    return this.directory.then((db) => {
-      const tx = db.transaction([_ACCOUNTS], 'readwrite');
-      tx.objectStore(_ACCOUNTS).put(account.serialize());
-      return tx.done.then(() => (account));
-    });
-  }
-
-  getStore(fingerprint) {
-    if (this.stores.has(fingerprint)) {
-      return this.stores.get(fingerprint);
-    } else {
-      const store = new Store(fingerprint);
-      this.stores.set(fingerprint, store);
-      return store;
-    }
-  }
-
-  getAccounts() {
-    return this.directory.then((db) => (db.transaction([_ACCOUNTS], 'readonly').objectStore(_ACCOUNTS).getAll()))
-                         .then((serializations) => {
-                           var accounts = [];
-                           serializations.forEach(
-                             (serialization) => {
-                               var account = new Account();
-                               account.deserialize(serialization);
-                               accounts.push(account);
-                             }
-                           );
-                           return accounts;
-                         });
-  }
-
-
-  getAccount(fingerprint) {
-    return this.directory.then(
-      (db) => (db.transaction([_ACCOUNTS], 'readonly').objectStore(_ACCOUNTS).get(fingerprint)))
-                         .then(
-      (serialization) =>
-        {
-          var account = new Account();
-          account.deserialize(serialization);
-          return account;
-        }
-    );
-  }
-}
-
 function storable(Class) {
   return class extends Class {
     constructor(...args) {
       super(...args);
-      this.tags             = new Set();
-      this.dependencies     = {};
-      this.signatures       = {};
-      this.keys             = {};
-      this.keyFingerprints  = new Set(); // if not present, a key will not be loadad
-                                         // so we _need_ the fingerprints so the objects
-                                         // will still have them in that case (for fingerprinting,
-                                         // eventual retransmission to a host that does have
-                                         // them, etc.)
-      this.timestamp        = Timestamps.uniqueTimestamp();
-      this.savedTimestamp   = null;
+      this.initializeStorable(); // this initalization must come _after_ calling super
+                                  // b/c of how constructors work in javascript
+    }
+
+    // so we provide this initialization function, that will not re-initialize an already
+    // initialized object, that super can explicitly call in its constructor in case it
+    // needs the storable functionality to construct itself.
+
+    initializeStorable() {
+      if (this.timestamp === undefined) {
+        this.tags             = new Set();
+        this.dependencies     = {};
+        this.dependencyWitnesses = {};
+        this.signatures       = {};
+        this.keys             = {};
+        this.keyFingerprints  = new Set(); // if not present, a key will not be loadad
+                                           // so we _need_ the fingerprints so the objects
+                                           // will still have them in that case (for fingerprinting,
+                                           // eventual retransmission to a host that does have
+                                           // them, etc.)
+        this.timestamp        = Timestamps.uniqueTimestamp();
+        this.savedTimestamp   = null;
+      }
     }
 
     equals(storable) {
@@ -591,13 +524,17 @@ function storable(Class) {
       return this.signatures;
     }
 
-    fingerprint() {
+    fingerprint(extra) {
 
       if (super.fingerprint === undefined) {
-        return Store.objectFingerprint(this);
+        return Store.objectFingerprint(this, extra);
       } else {
-        return super.fingerprint();
+        return super.fingerprint(extra);
       }
+    }
+
+    fingerprintWithExtraInfo(extra) {
+      return this.fingerprint(extra);
     }
 
     tag(tag) {
@@ -625,7 +562,28 @@ function storable(Class) {
     }
 
     signWith(identityKey) {
-      this.addSignature(identityKey.identityFingerprint(), identityKey.sign(this.fingerprint()));
+      // the following is necessary because we want to sign the object
+      // resulting _after_ adding the signature (only the identity is
+      // used for fingerprinting, not the signature per se)
+      this.addSignature(identityKey.deriveIdentity().fingerprint(), '');
+      this.addSignature(identityKey.deriveIdentity().fingerprint(), identityKey.sign(this.fingerprint()));
+    }
+
+    signWithMany(identityKeys) {
+      for (let identityKey of identityKeys) {
+        this.addSignature(identityKey.deriveIdentity().fingerprint(), '');
+      }
+      for (let identityKey of identityKeys) {
+        this.addSignature(identityKey.deriveIdentity().fingerprint(), identityKey.sign(this.fingerprint()));
+      }
+    }
+
+    signForIdentity(identity) {
+      this.signWith(identity.getIdentityKey());
+    }
+
+    signForIdentities(identities) {
+      this.signWithMany(identities.map(id => id.getIdentityKey()));
     }
 
     verifySignature(identity) {
@@ -724,7 +682,7 @@ function storable(Class) {
       serial['dependencies'] = Object.keys(this.dependencies).sort();
       serial['keys']         = Array.from(this.keyFingerprints).sort();
       serial['timestamp']    = this.timestamp;
-      serial['signatures']   = this.signatures;
+      serial['signatures']   =  this.signatures;
       return serial;
     }
 
@@ -735,7 +693,79 @@ function storable(Class) {
       this.signatures = serial['signatures'];
       super.deserialize(serial);
     }
+
+    fullContentHash(parents) {
+      if (parents === undefined) {
+        parents = [];
+      }
+      let extra = {};
+
+      extra['full-content-hash-parents'] = parents.join('-');
+
+      let newParents = parents.push(this.fingerprint());
+      for (let fp in this.dependencies) {
+        extra['full-content-hash-child-' + fp] =
+          this.dependencies[fp].fullContentHash(newParents);
+      }
+
+      return this.fingerprintWithExtraInfo(extra);
+    }
+
+    _computeDependencyWitnesses() {
+      let witnesses = {};
+      this.dependencies.forEach( dep => {
+
+      });
+    }
   }
 }
 
-export {StorageManager, Account, storable};
+class StorageManager {
+  constructor() {
+    this.stores = new Map();
+    this.directory = openDB('account-instance-directory', 1, {
+        upgrade(newdb, oldVersion, newVersion, tx) {
+          newdb.createObjectStore(_INSTANCES, {keyPath: 'instance'});
+      }
+    });
+  }
+
+  createStoreForInstance(instance) {
+
+    let instanceRecord = {'account'     : instance.getAccount().fingerprint(),
+                          'accountInfo' : instance.getAccount().getIdentity().getInfo(),
+                          'instance'    : instance.fingerprint(),
+                          'instanceInfo': instance.getIdentity().getInfo()};
+
+    return this.directory.then((db) => {
+      const tx = db.transaction([_INSTANCES], 'readwrite');
+      tx.objectStore(_INSTANCES).put(instanceRecord);
+      return tx.done;
+    })
+    .then(() => this.getStore(instance.fingerprint()));
+  }
+
+  getStore(accountInstanceFP) {
+    if (this.stores.has(accountInstanceFP)) {
+      return this.stores.get(accountInstanceFP);
+    } else {
+      const store = new Store(accountInstanceFP);
+      this.stores.set(accountInstanceFP, store);
+      return store;
+    }
+  }
+
+  getAllInstanceRecords() {
+    return this.directory.then(
+      (db) => (db.transaction([_INSTANCES], 'readonly').objectStore(_INSTANCES).getAll()));
+  }
+
+
+  getInstanceRecord(accountInstanceFP) {
+    return this.directory.then(
+      (db) => (db.transaction([_INSTANCES], 'readonly').objectStore(_INSTANCES).get(accountInstanceFP)));
+  }
+}
+
+
+export {StorageManager, storable};

@@ -11,9 +11,8 @@ import { Types } from '../types.js';
 class ReplicatedSingletonBase {
   constructor(identity) {
 
-    if (identity !== undefined) {
-      this.setIdentity(identity);
-    }
+    this.initilizeReplicable();
+    this.create(identity);
 
     this.singleton = new OperationalSingleton();
   }

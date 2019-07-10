@@ -6,7 +6,7 @@ import Typography from '@material-ui/core/Typography';
 import MenuIcon from '@material-ui/icons/Menu';
 import IconButton from '@material-ui/core/IconButton';
 
-import logo24 from '../../logo24.png';
+import logo24 from './images/logo24.png';
 
 class HeaderBar extends Component {
   render() {

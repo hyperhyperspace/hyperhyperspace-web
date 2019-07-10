@@ -44,7 +44,7 @@ import Drawer from '@material-ui/core/Drawer';
 import Input from '@material-ui/core/Input';
 import InputAdornment from '@material-ui/core/InputAdornment';
 
-import logo24 from '../../logo24.png';
+import logo24 from './images/logo24.png';
 
 import HeaderBar from './HeaderBar.js';
 

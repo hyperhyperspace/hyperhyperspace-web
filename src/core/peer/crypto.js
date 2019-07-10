@@ -183,6 +183,7 @@ class Crypto {
     if (keys !== undefined) {
       object = Hashes.filterKeys(object, keys);
     }
+    
     return Crypto.fingerprint(Crypto.stringify(object));
   }
 
@@ -218,10 +219,8 @@ class Crypto {
       keys.sort();
 
       keys.forEach(key => {
-        if (key !== 'fingerprint') {
-          plain = plain +
-                  Crypto._toEscapedString(key) + ':' + Crypto.stringify(object[key]) + ',';
-        }
+        plain = plain +
+                Crypto._toEscapedString(key) + ':' + Crypto.stringify(object[key]) + ',';
       });
     } else {
       plain = Crypto._toEscapedString(object.toString());

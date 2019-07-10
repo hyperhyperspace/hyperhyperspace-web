@@ -15,6 +15,15 @@ sent over the network.
 */
 
 class OperationalSet {
+
+  static getElementFromOp(op) {
+    return op['element'];
+  }
+
+  static getActionFromOp(op) {
+    return op['action'];
+  }
+
   constructor() {
     this.contents = new Set();
 
@@ -55,7 +64,7 @@ class OperationalSet {
     return result;
   }
 
-  applyOp(op) {
+  apply(op) {
     let action  = op['action'];
     let element = op['element'];
     let ids     = op['ids'];
@@ -125,7 +134,7 @@ class OperationalIncrementalSet {
     throw new Error('Trying to remove an element from an incremental set.')
   }
 
-  applyOp(op) {
+  apply(op) {
     let action  = op['action'];
     let element = op['element'];
 
@@ -176,7 +185,7 @@ class OperationalConfigurableSet {
 
   }
 
-  applyOp(op) {
+  apply(op) {
 
   }
 }

@@ -5,16 +5,18 @@ import './App.css';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import 'typeface-roboto';
 
-import AllChatsView from './ui/views/AllChatsView.js';
-import ChatView from './ui/views/ChatView.js';
-import InitView from './ui/views/InitView.js';
+import AllChatsView from './views/AllChatsView.js';
+import ChatView from './views/ChatView.js';
+import InitView from './views/InitView.js';
 
-import ChatsController from './ui/controllers/ChatsController.js';
+import ChatsController from './controllers/ChatsController.js';
 
 class App extends Component {
 
-  constructor() {
-    super();
+  constructor(props) {
+    super(props);
+
+    this.peerManager = props.peerManager;
 
     this.chatsController = new ChatsController();
   }

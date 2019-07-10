@@ -1,48 +1,55 @@
 
-import { IdentityManager } from './identity.js';
 import { LinkupManager }   from '../net/linkup.js';
 import { NetworkManager }  from '../net/network.js';
 import { StorageManager, storable }  from '../data/storage.js';
 import { ReplicationManager }     from '../data/replication.js';
 
+import { DeliveryService } from './delivery.js';
+import { IdentityService } from './identity.js';
+
 import { Endpoint } from '../net/linkup.js';
+import { Identity, IdentityKey } from './identity.js';
+import { Account, AccountInstance } from './accounts.js';
 
 class PeerManager {
 
   constructor() {
     this.storageManager  = new StorageManager();
-    this.identityManager = new IdentityManager(this.storageManager);
     this.linkupManager   = new LinkupManager();
     this.networkManager  = new NetworkManager(this.linkupManager);
-    this.replicationManager = new ReplicationManager(this.identityManager, this.networkManager, this.storageManager);
+    this.replicationManager = new ReplicationManager(this.networkManager, this.storageManager);
 
     this.peers = new Map();
 
   }
 
-  createAccount(type, name) {
-    const root = this.identityManager.createRoot(type, name);
+  createAccount(info) {
 
-    return this.storageManager.createStore(root).then(
-      () => {
-        this.syncManager.setupSync(root).then(() => {
-            return this.identityManager.setupIdentity()
-        });
-      });
+    let rootKey = new IdentityKey(info);
+    let account = new Account(rootKey);
+
+    return account;
   }
 
-  activatePeer(fingerprint) {
+  createLocalAccountInstance(account, info) {
+    let instance = account.createInstance(info);
+    return this.storageManager.createStoreForInstance(instance)
+               .then(store => {
+                    return account.flush(store)
+                                  .then(() => store);
+               });
+  }
+
+  activatePeerForInstance(fingerprint) {
     const peer = new Peer(this, fingerprint);
 
     this.peers.set(fingerprint, peer);
+
+    return peer;
   }
 
   getStorageManager() {
     return this.storageManager;
-  }
-
-  getIdentityManager() {
-    return this.identityManager;
   }
 
   getLinkupManager() {
@@ -53,55 +60,40 @@ class PeerManager {
     return this.networkManager;
   }
 
-  getSyncManager() {
-    return this.syncManager;
+  getReplicationManager() {
+    return this.replicationManager;
   }
 
 }
-
-class AccountManifestBase {
-  constructor(root, keys, devices, linkup) {
-    this.root    = root===undefined? null : root;
-    this.keys    = keys===undefined? null : keys;
-    this.devices = devices===undefined? null : devices;
-    this.linkup  = linkup===undefined? {} : linkup;
-  }
-
-  serialize() {
-    return {
-      'root'    : this.root,
-      'keys'    : this.keys,
-      'devices' : this.devices,
-      'linkup'  : this.linkup
-    };
-  }
-
-  deserialize(obj) {
-    this.root    = obj['root'];
-    this.keys    = obj['keys'];
-    this.devices = obj['devices'];
-    this.linkup  = obj['linkup']
-  }
-}
-
-const AccountManifest = storable(AccountManifestBase);
 
 class Peer {
   constructor(peerManager, fingerprint) {
 
     this.fingerprint = fingerprint;
 
-    this.peerManager = peerManager;
+    this.peerManager     = peerManager;
+    this.store           = peerManager.getStorageManager().getStore(fingerprint);
 
-    this.store    = peerManager.getStorageManager().getStore(fingerprint);
+    this.deliveryService = new DeliveryService(this);
 
-    this.identity = peerManager.getIdentityManager().getIdentityService(fingerprint);
 
     const endpoint = new Endpoint('wss://mypeer.net', fingerprint);
-    this.node     = peerManager.getNetworkManager().createNode(endpoint);
+    //this.node     = peerManager.getNetworkManager().createNode(endpoint);
 
     this.services = new Map();
 
+  }
+
+  getAccountInstanceFingerprint() {
+    return this.fingerprint;
+  }
+
+  getPeerManager() {
+    return this.peerManager;
+  }
+
+  getStore() {
+    return this.store;
   }
 
   registerService(service) {
@@ -116,4 +108,4 @@ class Peer {
   }
 }
 
-export { PeerManager, AccountManifest };
+export { PeerManager };

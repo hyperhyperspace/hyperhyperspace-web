@@ -1,8 +1,9 @@
 import { Identity, IdentityKey } from '../peer/identity.js';
 import { Account, AccountInstance } from '../peer/accounts.js';
 import { ControlOp, DataOp } from './replication.js';
-import { ReplicatedSet } from './replicated/set.js';
+import { ReplicatedSet, ReplicatedObjectSet } from './replicated/set.js';
 import { ReplicatedSingleton } from './replicated/singleton.js';
+import { ReplicatedNamespace } from './replicated/namespace.js';
 
 const _ACCOUNT          = 'account';
 const _ACCOUNT_INSTANCE = 'account-instance';
@@ -11,7 +12,9 @@ const _IDENTITY_KEY     = 'identity-key';
 const _DATA_OP          = 'data-op';
 const _CONTROL_OP       = 'control-op';
 const _REPL_SET         = 'repl-set';
+const _REPL_OBJECT_SET  = 'repl-object-set';
 const _REPL_SINGLETON   = 'repl-singleton';
+const _REPL_NAMESPACE   = 'repl-namespace';
 
 class Types {
   static ACCOUNT()         { return _ACCOUNT; }
@@ -20,8 +23,10 @@ class Types {
   static IDENTITY_KEY()    { return _IDENTITY_KEY; }
   static DATA_OP()         { return _DATA_OP; }
   static CONTROL_OP()      { return _CONTROL_OP; }
+  static REPL_OBJECT_SET() { return _REPL_OBJECT_SET; }
   static REPL_SET()        { return _REPL_SET; }
   static REPL_SINGLETON()  { return _REPL_SINGLETON; }
+  static REPL_NAMESPACE()  { return _REPL_NAMESPACE; }
 
   static deserializeWithType(serial, deps, foundKeys) {
 
@@ -39,12 +44,16 @@ class Types {
         typed = new AccountInstance();
       } else if (serial.type === _REPL_SET) {
         typed = new ReplicatedSet();
+      } else if (serial.type === _REPL_OBJECT_SET) {
+        typed = new ReplicatedObjectSet();
       } else if (serial.type === _REPL_SINGLETON) {
         typed = new ReplicatedSingleton();
       } else if (serial.type === _DATA_OP) {
         typed = new DataOp();
       } else if (serial.type === _CONTROL_OP) {
         typed = new ControlOp();
+      } else if (serial.type === _REPL_NAMESPACE) {
+        typed = new ReplicatedNamespace();
       } else {
         throw new Error("Unknown object type '" + serial.type + "'");
       }
@@ -54,9 +63,9 @@ class Types {
         typed.setDependency(obj);
       }
 
-      foundKeys.forEach(key => {
+      for (let key of Object.values(foundKeys)) {
         typed.addKey(key);
-      });
+      }
 
       typed.deserialize(serial);
       return typed;

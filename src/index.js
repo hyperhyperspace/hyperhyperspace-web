@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
-import App from './App';
+import App from './ui/App.js';
 import * as serviceWorker from './serviceWorker';
 
 import { WebsocketLinkupConnection } from './core/net/linkup.js';
@@ -9,14 +9,11 @@ import { WebsocketLinkupConnection } from './core/net/linkup.js';
 import { LinkupManager, Endpoint} from './core/net/linkup.js';
 import { NetworkManager } from './core/net/network.js'
 import { StorageManager, Account, Atom } from './core/data/storage.js';
-import { IdentityManager, IdentityKey } from './core/peer/identity.js';
+import { IdentityKey } from './core/peer/identity.js';
 import { Crypto } from './core/peer/crypto.js';
 import { Types } from './core/data/types.js';
 
 import { PeerManager } from './core/peer/peering.js';
-
-const storageMgr = new StorageManager();
-const identityMgr = new IdentityManager(storageMgr);
 
 //let peerm = new PeerManager();
 
@@ -36,7 +33,10 @@ console.log(id.serialize());
 console.log(id.fingerprint());
 */
 
-testNetworking();
+
+
+
+//testNetworking();
 //testLinkup();
 
 //identityMgr.createRootIdentityKey('person', 'Santiago Bazerque');
@@ -99,12 +99,13 @@ storage.getAccounts().then(
 
 
 
-
-
+testAccounts();
 //benchmarkCrypto();
 
+const peerManager = new PeerManager();
+const storageMgr = new StorageManager();
 
-ReactDOM.render(<App storageMgr={storageMgr}/>, document.getElementById('root'));
+ReactDOM.render(<App peerManager={peerManager}/>, document.getElementById('root'));
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.
@@ -112,17 +113,71 @@ ReactDOM.render(<App storageMgr={storageMgr}/>, document.getElementById('root'))
 serviceWorker.unregister();
 
 
+async function testAccounts() {
+  const peerMgr = new PeerManager();
+  const storageMgr = peerMgr.getStorageManager();
+
+  const instanceRecords = await storageMgr.getAllInstanceRecords();
+
+  console.log(instanceRecords);
+  var instanceFP = null;
+
+  if (instanceRecords.length > 0) {
+    instanceFP = instanceRecords[0]['instance'];
+  }
+  //var instanceFP = '01f6654e4bf8a96811b2bfe2969e8db3981a1058e8';
+  var instanceCreation = null;
+
+  if (instanceFP === null) {
+    let account = peerMgr.createAccount({'type': 'user', 'name': 'Santi Bazerque'});
+    instanceCreation = peerMgr.createLocalAccountInstance(account, {'name': 'My first device'});
+
+    instanceCreation.then(store => {
+      console.log('created store for instance ' + store.getAccountInstanceFP());
+      instanceFP = store.getAccountInstanceFP();
+    });
+  } else {
+    instanceCreation = Promise.resolve(true);
+  }
+
+  await instanceCreation;
+
+
+  console.log(instanceFP);
+
+  let peer = peerMgr.activatePeerForInstance(instanceFP);
+
+  let store = peer.getStore();
+
+
+  let instance = await store.load(instanceFP);
+  let account  = instance.getAccount();
+  await account.pull(store);
+  console.log('account loaded!');
+  console.log(account);
+
+  /*store.load(instanceFP)
+       .then(instance2 => instance2.getAccount())
+       .then(account => account.pull(store))
+       .then(account => {
+          console.log('account loaded!');
+          console.log(account);
+        });*/
+
+
+}
+
 function testNetworking() {
 
   var linkup1 = new LinkupManager();
   var linkup2 = new LinkupManager();
 
 
-  var endpoint1 = new Endpoint('ws://localhost:8765', 'peer1');
-  var endpoint2 = new Endpoint('ws://localhost:8765', 'peer2');
+  //var endpoint1 = new Endpoint('ws://localhost:8765', 'peer1');
+  //var endpoint2 = new Endpoint('ws://localhost:8765', 'peer2');
 
-  //var endpoint1 = new Endpoint('wss://mypeer.net', 'peer1');
-  //var endpoint2 = new Endpoint('wss://mypeer.net', 'peer2');
+  var endpoint1 = new Endpoint('wss://mypeer.net', 'peer1');
+  var endpoint2 = new Endpoint('wss://mypeer.net', 'peer2');
 
   var network1  = new NetworkManager(linkup1);
   var network2  = new NetworkManager(linkup2);

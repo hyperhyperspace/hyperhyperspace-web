@@ -2,7 +2,7 @@ import Strings from './strings.js';
 
 class Timestamps {
 
-  static current() {
+  static currentTimestamp() {
     return 'T' + Strings.pad(Date.now().toString(16), 11);
   }
 

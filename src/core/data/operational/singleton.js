@@ -37,7 +37,7 @@ class OperationalSingleton {
     };
   }
 
-  applyOp(op) {
+  apply(op) {
     let element = op['element'];
     let counter = op['counter'];
     if (Counters.smaller(this.counter, counter)) {

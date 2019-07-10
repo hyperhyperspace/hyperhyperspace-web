@@ -18,7 +18,7 @@ import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import withMobileDialog from '@material-ui/core/withMobileDialog';
 
-import logo32 from '../../logo32.png';
+import logo32 from '../components/images/logo32.png';
 
 class InitView extends React.Component {
 
