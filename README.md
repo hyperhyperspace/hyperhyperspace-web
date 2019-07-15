@@ -11,13 +11,13 @@ It should be ready to use in the following weeks.
 
 What we have:
 
-- P2P core engine running in the browser, using:
- - Networking solution using WebRTC and federated signalling
- - Content-addressable storage using IndexedDB
- - Cryptographic identities / validation using JSEncrypt, Hashes and in-browser crypto
- - CRDT-based distributed database
+* P2P core engine running in the browser, using:
+  * Networking solution using WebRTC and federated signalling
+  * Content-addressable storage using IndexedDB
+  * Cryptographic identities / validation using JSEncrypt, Hashes and in-browser crypto
+  * CRDT-based distributed database
  
-- Chat single-page application UI, created using React and Material-UI
+* Chat single-page application UI, created using React and Material-UI
 
 Working:
 
