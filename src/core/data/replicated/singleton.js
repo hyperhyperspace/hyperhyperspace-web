@@ -9,10 +9,11 @@ import { Types } from '../types.js';
 */
 
 class ReplicatedSingletonBase {
-  constructor(identity) {
+  constructor(identity, replicationId) {
+    this.type = Types.REPL_SINGLETON();
 
     this.initilizeReplicable();
-    this.create(identity);
+    this.create(identity, replicationId);
 
     this.singleton = new OperationalSingleton();
   }

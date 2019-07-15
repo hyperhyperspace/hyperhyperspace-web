@@ -1,15 +1,17 @@
-
-import { LinkupManager }   from '../net/linkup.js';
+import { LinkupManager, Endpoint }   from '../net/linkup.js';
 import { NetworkManager }  from '../net/network.js';
+import { DeliveryService } from '../net/delivery.js';
+
 import { StorageManager, storable }  from '../data/storage.js';
-import { ReplicationManager }     from '../data/replication.js';
+import { ReplicationService }     from '../data/replication.js';
 
-import { DeliveryService } from './delivery.js';
 import { IdentityService } from './identity.js';
-
-import { Endpoint } from '../net/linkup.js';
 import { Identity, IdentityKey } from './identity.js';
 import { Account, AccountInstance } from './accounts.js';
+
+import { ConsoleService } from '../../services/console.js';
+
+import Logger from '../util/logging';
 
 class PeerManager {
 
@@ -17,7 +19,6 @@ class PeerManager {
     this.storageManager  = new StorageManager();
     this.linkupManager   = new LinkupManager();
     this.networkManager  = new NetworkManager(this.linkupManager);
-    this.replicationManager = new ReplicationManager(this.networkManager, this.storageManager);
 
     this.peers = new Map();
 
@@ -36,7 +37,7 @@ class PeerManager {
     return this.storageManager.createStoreForInstance(instance)
                .then(store => {
                     return account.flush(store)
-                                  .then(() => store);
+                                  .then(() => instance);
                });
   }
 
@@ -46,6 +47,10 @@ class PeerManager {
     this.peers.set(fingerprint, peer);
 
     return peer;
+  }
+
+  getAvailableInstanceRecords() {
+    return this.storageManager.getAllInstanceRecords();
   }
 
   getStorageManager() {
@@ -66,22 +71,115 @@ class PeerManager {
 
 }
 
+const _LINKUP_SERVER = 'ws://localhost:8765';
+//const _LINKUP_SERVER = 'wss://mypeer.net';
+
 class Peer {
+
+  static INSTANCE_DELIVERY_SERVICE = 'instance-delivery';
+  static CONSOLE_SERVICE = 'console';
+
   constructor(peerManager, fingerprint) {
 
+    this.logger = new Logger(this);
+    this.logger.setLevel(Logger.INFO());
+
     this.fingerprint = fingerprint;
+    this.peerManager = peerManager;
+    this.store       = peerManager.getStorageManager().getStore(fingerprint);
 
-    this.peerManager     = peerManager;
-    this.store           = peerManager.getStorageManager().getStore(fingerprint);
+    this.instance    = null;
 
-    this.deliveryService = new DeliveryService(this);
-
-
-    const endpoint = new Endpoint('wss://mypeer.net', fingerprint);
-    //this.node     = peerManager.getNetworkManager().createNode(endpoint);
+    this.routeIncomingMessageBound = this.routeIncomingMessage.bind(this);
 
     this.services = new Map();
 
+  }
+
+  start() {
+    let ownInit = this._init();
+
+    this.initialization = ownInit.then(() => {
+      let servicesToInit = Array.from(this.services.values());
+      Promise.all(servicesToInit.map(s => s.start()));
+    });
+
+    return this.initialization.then(() => {
+      this.logger.info('All services started for instance ' + this.fingerprint);
+    });
+
+  }
+
+  async waitUntilStartup() {
+    return this.initialization;
+  }
+
+  async _init() {
+    this.instance = await this.store.load(this.fingerprint);
+
+    let account = this.instance.getAccount();
+
+    this.deliveryService = new DeliveryService(this,
+                                              this.instance.getAccount().getIdentity(),
+                                              _LINKUP_SERVER,
+                                              this.routeIncomingMessageBound
+                                            );
+
+
+    this.registerService(this.deliveryService);
+
+    this.replicationService = new ReplicationService(this);
+
+    this.registerService(this.replicationService);
+
+    this.consoleService = new ConsoleService(this);
+
+    this.registerService(this.consoleService);
+
+  }
+
+  registerService(service) {
+    this.services.set(service.getServiceName(), service);
+  }
+
+  deregisterService(name) {
+    this.services.delete(name);
+  }
+
+  routeIncomingMessage(source, destination, wireFmt) {
+
+    this.logger.debug(this.fingerprint + ' is routing INCOMING message src:' + source.fingerprint() + ' dst: ' + destination.fingerprint());
+    this.logger.trace('content:' + wireFmt);
+
+    let msg = new PeerMessage();
+    msg.fromWireFormat(wireFmt);
+
+    let service = this.services.get(msg.destinationService);
+
+    if (service !== undefined) {
+      service.receiveMessage(source, destination, msg.destinationService, msg.contentLiteral);
+    } else {
+      this.logger.warning('Received incoming messege for unregistered service: ' + msg.destinationService);
+    }
+
+  }
+
+  async routeOutgoingMessage(sourceFP, destinationFP, destinationService, contentLiteral) {
+    this.logger.debug(this.fingerprint + ' is routing OUTGOING message src:' + sourceFP + ' dst: ' + destinationFP);
+    this.logger.trace('content:' + JSON.stringify(contentLiteral));
+    return this.routeOutgoingMessageTmp(sourceFP, destinationFP, _LINKUP_SERVER, destinationService, contentLiteral);
+  }
+
+  async routeOutgoingMessageTmp(sourceFP, destinationFP, destinationLinkup, destinationService, contentLiteral) {
+    if (sourceFP !== this.instance.getAccount().getIdentity().fingerprint()) {
+      throw new Error('Sorry, routng is supported only from the account identity for the time being.');
+    }
+
+    await this.initialization;
+
+    let msg = new PeerMessage(sourceFP, destinationFP, destinationService, contentLiteral);
+
+    this.deliveryService.send(destinationFP, destinationLinkup, msg.toWireFormat(), 30);
   }
 
   getAccountInstanceFingerprint() {
@@ -95,17 +193,30 @@ class Peer {
   getStore() {
     return this.store;
   }
+}
 
-  registerService(service) {
-    service.init(this);
-    this.services.put(service.getName(), service);
+class PeerMessage {
+  constructor(sourceIdentity, destinationIdentity, destinationService, contentLiteral) {
+    this.sourceIdentity      = sourceIdentity === undefined? null : sourceIdentity;
+    this.destinationIdentity = destinationIdentity === undefined? null : destinationIdentity;
+    this.destinationService  = destinationService === undefined? null : destinationService;
+    this.contentLiteral      = contentLiteral;
   }
 
-  deregisterSerice(name) {
-    const service = this.services.get(name);
-    service.deinit();
-    this.services.delete(name);
+  toWireFormat() {
+    return JSON.stringify({'source':      this.sourceIdentity,
+                           'destination': this.destinationIdentity,
+                           'service':     this.destinationService,
+                           'content':     this.contentLiteral});
+  }
+
+  fromWireFormat(payload) {
+    let literal = JSON.parse(payload);
+    this.sourceIdentity      = literal['source'];
+    this.destinationIdentity = literal['destination'];
+    this.destinationService  = literal['service'];
+    this.contentLiteral      = literal['content'];
   }
 }
 
-export { PeerManager };
+export { PeerManager, Peer };

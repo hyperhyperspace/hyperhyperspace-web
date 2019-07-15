@@ -20,6 +20,8 @@ class IdentityKeyBase {
 
   constructor(info, parentIdentity) {
 
+    this.type = Types.IDENTITY_KEY();
+
     this.initializeStorable();
 
     this.info = info === undefined? null : info;
@@ -32,8 +34,6 @@ class IdentityKeyBase {
       this.parentIdentity = parentIdentity;
       this.addDependency(this.parentIdentity);
     }
-
-    this.type = Types.IDENTITY_KEY();
 
     if (this.info !== null) {
       this._generateKey();
@@ -100,11 +100,10 @@ class IdentityKeyBase {
       'key':  this.key.serialize(),
       'info': this.info,
       'type': this.type,
-      'identityfp': this.identity.fingerprint()
     };
 
     if (this.parentIdentity !== null) {
-      serial['parentfp'] = this.parentIdentity.fingerprint();
+      serial['parent'] = this.parentIdentity.fingerprint();
     }
 
     return serial;
@@ -114,11 +113,13 @@ class IdentityKeyBase {
     this.key = new KeyPair();
     this.key.deserialize(serial['key']);
     this.info    = serial['info'];
-    if ('parentfp' in serial ) {
-      this.parentIdentity = this.getDependency(serial['parentfp']);
+    if ('parent' in serial ) {
+      this.parentIdentity = this.getDependency(serial['parent']);
     } else {
       this.parentIdentity = null;
     }
+
+    this._generateIdentity();
   }
 
   toJSON() {
@@ -150,6 +151,8 @@ const IdentityKey = storable(IdentityKeyBase);
 class IdentityBase {
   constructor(publicKey, info, parentIdentity) {
 
+    this.type = Types.IDENTITY();
+
     this.initializeStorable();
 
     if (publicKey === undefined) {
@@ -165,7 +168,7 @@ class IdentityBase {
       this.parentIdentity = parentIdentity;
       this.addDependency(parentIdentity);
     }
-    this.type = Types.IDENTITY();
+
   }
 
   fingerprint(extra) {
@@ -235,7 +238,7 @@ class IdentityBase {
       this.parentIdentity = this.getDependency(serial['parentfp']);
     }
   }
-  
+
   getIdentityKeyFingerprint() {
     let literal = {'key': this.key.getHash(), 'info': this.info, 'type': Types.IDENTITY_KEY()};
     if (this.parentIdentity !== null) {

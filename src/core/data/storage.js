@@ -7,6 +7,8 @@ import { Types } from './types.js';
 
 import Timestamps from '../util/timestamps.js';
 
+import Logger from '../util/logging';
+
 const _OBJECTS   = 'objects';
 const _INSTANCES = 'instances';
 
@@ -25,6 +27,10 @@ const _SIGNATURE_ERROR    = 'signature-error';
 
 class Store {
   constructor(accountInstanceFP) {
+
+    this.logger = new Logger(this);
+    this.logger.setLevel(Logger.INFO());
+
     this.accountInstanceFP = accountInstanceFP;
     this.db = openDB('account-instance-' + accountInstanceFP, 1, {
         upgrade(newdb, oldVersion, newVersion, tx) {
@@ -51,6 +57,7 @@ class Store {
   }
 
   save(object) {
+    this.logger.debug('about to save ' + object.fingerprint());
     return this.saveOnce(object, {});
   }
 
@@ -119,7 +126,12 @@ class Store {
     if (external === undefined) {
       external = {};
     }
-    return this.loadWithDependencies(fingerprint, new Set(), this.loadStorageLiteral(fingerprint), {}, {}, external);
+    this.logger.debug('(' + this.accountInstanceFP + ') about to load ' + fingerprint + ' externals: ' + Object.keys(external).toString());
+    return this.loadWithDependencies(fingerprint, new Set(), this.loadStorageLiteral(fingerprint), {}, {}, external)
+                  .then(obj => {
+                    this.logger.trace('(' + this.accountInstanceFP + ') done loading ' + fingerprint);
+                    return obj;
+                  });
   }
 
   loadIfExists(fingerprint) {
@@ -139,6 +151,8 @@ class Store {
   }
 
   loadWithDependencies(fingerprint, parents, objLoad, dependencyLoads, keyLoads, external) {
+
+    this.logger.trace('(' + this.accountInstanceFP + ') load w/deps ' + fingerprint);
 
     parents.add(fingerprint);
     return objLoad.then(literal => {
@@ -185,6 +199,7 @@ class Store {
        });
 
        let deps = serial['dependencies'];
+
        let toLoad = [];
        deps.forEach(depfp => {
          if (parents.has(depfp)) {
@@ -242,8 +257,12 @@ class Store {
   // or fails in case object is inconsistent or can't be
   // checked
   checkExternalObject(fingerprint, object, parents, deps, keys, external) {
+
+    this.logger.trace('(' + this.accountInstanceFP + '): checking external ' + fingerprint);
+
     let computed = object.fingerprint();
     let expected = fingerprint;
+
     if (computed !== expected) {
       let e = new Error('Received object has a fingerprint mismatch (computed:' + computed + ', expected: ' + expected + ')');
       e.details = {'reason': _FINGERPRINT_ERROR, 'fingerprint': computed, 'expected': expected};
@@ -255,7 +274,7 @@ class Store {
         sigChecks.push(
           this.loadWithDependencies(identityfp, new Set(parents), this.loadStorageLiteral(identityfp), deps, keys, external)
               .then(identity => {
-                let signature = object.getSignature(identityfp);
+                let signature = object.getSignatures()[identityfp];
                 if (! identity instanceof Identity ||
                     ! identity.verify(fingerprint, signature)) {
 
@@ -273,21 +292,25 @@ class Store {
   }
 
   loadAllByType(type, order, useRecvTime) {
+    this.logger.debug('(' + this.accountInstanceFP + ') about to load all by type ' + type); // + ' externals: ' + Object.keys(external).toString());
     const index = useRecvTime ? _TYPE_SAVED_IDX : _TYPE_TIMESTAMP_IDX;
     return this.loadByIndex(index, type, order);
   }
 
   loadAllByTag(tag, order, useRecvTime) {
+    this.logger.debug('(' + this.accountInstanceFP + ') about to load all by tag ' + tag); // + ' externals: ' + Object.keys(external).toString());
     const index = useRecvTime ? _TAGS_SAVED_IDX : _TAGS_TIMESTAMP_IDX;
     return this.loadByIndex(index, tag, order);
   }
 
   loadByType(type, start, order, count, useRecvTime) {
+    this.logger.debug('(' + this.accountInstanceFP + ') about to load by type ' + type); // + ' externals: ' + Object.keys(external).toString());
     const index = useRecvTime ? _TYPE_SAVED_IDX : _TYPE_TIMESTAMP_IDX;
     return this.loadByIndex(index, type, order, start, count);
   }
 
   loadByTag(tag, start, order, count, useRecvTime) {
+    this.logger.debug('(' + this.accountInstanceFP + ') about to load by tag ' + tag); // + ' externals: ' + Object.keys(external).toString());
     const index = useRecvTime ? _TAGS_SAVED_IDX : _TAGS_TIMESTAMP_IDX;
     return this.loadByIndex(index, tag, order, start, count);
   }
@@ -330,7 +353,7 @@ class Store {
       let external = {};
       let done = new Set();
 
-      let cursor = await this.db.then((db) => db.transaction([_OBJECTS], 'readonly').objectStore(_OBJECTS).index(index).openCursor(range, direction));
+      var cursor = await this.db.then((db) => db.transaction([_OBJECTS], 'readonly').objectStore(_OBJECTS).index(index).openCursor(range, direction));
 
       while (cursor) {
 
@@ -478,7 +501,6 @@ function storable(Class) {
       if (this.timestamp === undefined) {
         this.tags             = new Set();
         this.dependencies     = {};
-        this.dependencyWitnesses = {};
         this.signatures       = {};
         this.keys             = {};
         this.keyFingerprints  = new Set(); // if not present, a key will not be loadad
@@ -527,6 +549,10 @@ function storable(Class) {
     fingerprint(extra) {
 
       if (super.fingerprint === undefined) {
+        //console.log('about to fingerprint:');
+        //console.log(this);
+        //console.log(extra);
+        //console.log('result :' + Store.objectFingerprint(this, extra));
         return Store.objectFingerprint(this, extra);
       } else {
         return super.fingerprint(extra);
@@ -702,7 +728,9 @@ function storable(Class) {
 
       extra['full-content-hash-parents'] = parents.join('-');
 
-      let newParents = parents.push(this.fingerprint());
+      let newParents = parents.slice();
+      newParents.push(this.fingerprint());
+
       for (let fp in this.dependencies) {
         extra['full-content-hash-child-' + fp] =
           this.dependencies[fp].fullContentHash(newParents);

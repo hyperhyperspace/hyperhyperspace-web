@@ -3,7 +3,7 @@ import { replicable } from '../replication.js';
 import { Types } from '../types.js';
 import { Crypto } from '../../peer/crypto.js';
 
-/* A namespace that maps strings to replicated data type instances */
+/* A namespace CRDT that maps strings to replicated data type instances */
 
 /* All the CRDTs used as values for the namespace must share the
    same creator as the namespace itself. */
@@ -13,17 +13,21 @@ import { Crypto } from '../../peer/crypto.js';
               the creator and the type. This makes race conditions
               when defining keys impossible. */
 
+/* it's like multiplexing a previously-agreed upon replication-id,
+   and using it to send operations to several CRDT. */
+
 
 class ReplicatedNamespaceBase {
 
   constructor(identity, replicationId) {
+
+    this.type = Types.REPL_NAMESPACE();
+
     this.initializeReplicable();
 
     this.names = new OperationalSet();
     this.objects = {};
     this.namespace = {};
-
-    this.type = Types.REPL_NAMESPACE();
 
     if (identity !== undefined) {
         this.create(identity, replicationId);
@@ -32,7 +36,7 @@ class ReplicatedNamespaceBase {
   }
 
   set(name, replicable) {
-    let rid = this.getReplication(name, replicable.type);
+    let rid = this.getReplicationIdFor(name, replicable.type);
 
     if (replicable.getReplicationId() !== rid) {
       throw new Error("Can't add name to replicated namespace, expected a repl. id of " + rid + " but got " + replicable.getReplicationId() + " instead.");
@@ -44,7 +48,11 @@ class ReplicatedNamespaceBase {
                   'fingerprint': replicable.fingerprint()
                };
 
-    this.addOperation(this.names.createAddOp(item), [replicable], this.getCreator());
+    let op = this.names.createAddOp(item);
+    if (op !== null) {
+      this.addOperation(op, [replicable], this.getCreator());
+    }
+
   }
 
   get(name, type) {

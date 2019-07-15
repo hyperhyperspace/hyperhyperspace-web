@@ -13,7 +13,7 @@ import { IdentityKey } from './core/peer/identity.js';
 import { Crypto } from './core/peer/crypto.js';
 import { Types } from './core/data/types.js';
 
-import { PeerManager } from './core/peer/peering.js';
+import { PeerManager, Peer } from './core/peer/peering.js';
 
 //let peerm = new PeerManager();
 
@@ -98,8 +98,10 @@ storage.getAccounts().then(
 */
 
 
-
-testAccounts();
+testReplication();
+//testDelivery();
+//testNetworking();
+//testAccounts();
 //benchmarkCrypto();
 
 const peerManager = new PeerManager();
@@ -173,22 +175,25 @@ function testNetworking() {
   var linkup2 = new LinkupManager();
 
 
-  //var endpoint1 = new Endpoint('ws://localhost:8765', 'peer1');
-  //var endpoint2 = new Endpoint('ws://localhost:8765', 'peer2');
+  var endpoint1 = new Endpoint('ws://localhost:8765', 'peer1');
+  var endpoint2 = new Endpoint('ws://localhost:8765', 'peer2');
 
-  var endpoint1 = new Endpoint('wss://mypeer.net', 'peer1');
-  var endpoint2 = new Endpoint('wss://mypeer.net', 'peer2');
+  //var endpoint1 = new Endpoint('wss://mypeer.net', 'peer1');
+  //var endpoint2 = new Endpoint('wss://mypeer.net', 'peer2');
 
   var network1  = new NetworkManager(linkup1);
   var network2  = new NetworkManager(linkup2);
 
-  var node1 = network1.getNetworkNode(endpoint1);
-  var node2 = network2.getNetworkNode(endpoint2);
+  var node1 = network1.getNode(endpoint1);
+  var node2 = network2.getNode(endpoint2);
 
   node1.setConnectionCallback((conn) => {
       console.log('peer1 established a connection!');
+      console.log('local callId: ' + conn.getLocalCallId());
+      console.log('remote callId: ' + conn.getRemoteCallId());
       conn.setMessageCallback((msg) => {
         console.log('peer1 received a message: ' + msg);
+        //console.log(msg);
         if (msg.includes('hello')) { conn.send('well received peer2'); }
       });
       conn.send('hello peer2');
@@ -201,6 +206,7 @@ function testNetworking() {
       if (msg.includes('hello')) { conn.send('well received peer1'); }
     });
     conn.send('hello peer1');
+    window.setTimeout(() => { conn.send('one last thing peer 1')}, 60000);
   });
 
   node1.start();
@@ -209,6 +215,108 @@ function testNetworking() {
   window.setTimeout(() => {
     node2.open('test call', endpoint1);
   }, 3000);
+
+
+}
+
+async function testDelivery() {
+
+  const peerManager = new PeerManager();
+
+  var pepo = await getPeerForName(peerManager, 'pepo');
+  var yiyo = await getPeerForName(peerManager, 'yiyo');
+
+  let pepoInstance = await pepo.getStore().load(pepo.getAccountInstanceFingerprint());
+  let yiyoInstance = await yiyo.getStore().load(yiyo.getAccountInstanceFingerprint());
+
+
+
+  pepo.start();
+  yiyo.start();
+
+  await pepo.waitUntilStartup();
+  await yiyo.waitUntilStartup();
+  pepo.routeOutgoingMessage(pepoInstance.getAccount().getIdentity().fingerprint(),
+                            yiyoInstance.getAccount().getIdentity().fingerprint(),
+                            Peer.CONSOLE_SERVICE,
+                            'FIRST ROUTED SERVICE MESSAGE EVER'
+                          );
+
+}
+
+async function testReplication() {
+  const peerManager = new PeerManager();
+
+  var pepo = await getPeerForName(peerManager, 'pepo');
+  var yiyo = await getPeerForName(peerManager, 'yiyo');
+
+  pepo.start();
+  yiyo.start();
+
+  await pepo.waitUntilStartup();
+  await yiyo.waitUntilStartup();
+
+
+  let pepoInstance = await pepo.getStore().load(pepo.getAccountInstanceFingerprint());
+  let yiyoInstance = await yiyo.getStore().load(yiyo.getAccountInstanceFingerprint());
+
+  let yiyoAcct = yiyoInstance.getAccount();
+  let pepoAcct = pepoInstance.getAccount();
+
+
+  //console.log(yiyoAcct.getInstances().fingerprint());
+  await yiyoAcct.getInstances().pull(yiyo.getStore());
+  //console.log(yiyoAcct.getInstances().getReplicaControl().getReceivers());
+
+
+  let serial = pepoAcct.getIdentity().serialize();
+  let pepoForeign = Types.deserializeWithType(serial);
+
+  yiyoAcct.getInstances()
+             .addReceiver(pepoForeign,
+                          yiyoAcct.getIdentity());
+
+  await yiyoAcct.getInstances().flush(yiyo.getStore());
+
+  setTimeout(() => {
+    yiyo.getStore().load(yiyoAcct.getInstances().fingerprint()).then(
+      yiyosViewOfYiyoInst => {
+        yiyosViewOfYiyoInst.pull(yiyo.getStore()).then( () => {
+            console.log('yiyo instance in his own instance:');
+            console.log(yiyosViewOfYiyoInst);
+          }
+        );
+      }
+    );
+  }, 3000);
+
+  setTimeout(() => {
+    pepo.getStore().load(yiyoAcct.getInstances().fingerprint()).then(
+      peposViewOfYiyoInst => {
+        peposViewOfYiyoInst.pull(pepo.getStore()).then( () => {
+            console.log('yiyo instance set as replicated to pepo:');
+            console.log(peposViewOfYiyoInst);
+          }
+        );
+      }
+    );
+  }, 10000);
+
+
+}
+
+async function getPeerForName(peerManager, name) {
+  let irs = await peerManager.getAvailableInstanceRecords();
+  for (let ir of irs) {
+    if (ir['accountInfo']['name'] == name) {
+      return peerManager.activatePeerForInstance(ir['instance']);
+    }
+  }
+
+  let account = peerManager.createAccount({'name': name});
+  let instance = await peerManager.createLocalAccountInstance(account, {'name': 'My first device'});
+  return peerManager.activatePeerForInstance(instance.fingerprint());
+
 }
 
 function benchmarkCrypto() {

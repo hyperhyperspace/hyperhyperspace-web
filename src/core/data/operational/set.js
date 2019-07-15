@@ -42,11 +42,16 @@ class OperationalSet {
   }
 
   createAddOp(element) {
-    return {
-      action: 'add',
-      element: element,
-      ids: [uuid()],
+    if (!this.has(element)) {
+      return {
+          action: 'add',
+          element: element,
+          ids: [uuid()],
+        };
+    } else {
+      return null;
     }
+
   }
 
   createRemoveOp(element) {
@@ -76,15 +81,13 @@ class OperationalSet {
     }
 
     ids.forEach(id => {
-      if (action === 'remove') {
-        elementIds.add(id);
-        if (action === 'remove') { this.removedIds.add(id); }
-      }
+      elementIds.add(id);
+      if (action === 'remove') { this.removedIds.add(id); }
     });
 
-    const survivingIds = elementIds.filter(id => !this.removedIds.has(id));
+    const survivingIds = Array.from(elementIds).filter(id => !this.removedIds.has(id));
 
-    const addElement = (survivingIds > 0);
+    const addElement = (survivingIds.length > 0);
 
     const fireCallbacks = addElement !== this.contents.has(element);
 
@@ -124,10 +127,15 @@ class OperationalIncrementalSet {
   }
 
   createAddOp(element) {
-    return {
-      action: 'add',
-      element: element,
+    if (!this.has(element)) {
+      return {
+        action: 'add',
+        element: element,
+      }
+    } else {
+      return null;
     }
+
   }
 
   createRemoveOp(element) {

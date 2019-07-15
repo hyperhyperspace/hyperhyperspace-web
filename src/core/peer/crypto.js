@@ -1,6 +1,7 @@
 import JSEncrypt from 'jsencrypt';
 import Hashes from 'jshashes';
 import { v4 as uuid } from 'uuid';
+import Strings from '../util/strings.js';
 
 class KeyPair {
   constructor(bits) {
@@ -183,7 +184,7 @@ class Crypto {
     if (keys !== undefined) {
       object = Hashes.filterKeys(object, keys);
     }
-    
+
     return Crypto.fingerprint(Crypto.stringify(object));
   }
 
@@ -231,6 +232,23 @@ class Crypto {
 
   static _toEscapedString(something) {
     return "'" + something.toString().replace("'", "''") + "'";
+  }
+
+  static randomHexString(length) {
+    const step = 4;
+    var result = '';
+    while (length >= 4) {
+      result = result + Crypto.randomHex16bitsWord();
+      length = length - 4;
+    }
+
+    result = result + Strings.pad((window.crypto.getRandomValues(new Uint16Array(1))[0]).toString(16), 4).substring(4-length, 4);
+
+    return result;
+  }
+
+  static randomHex16bitsWord() {
+    return Strings.pad((window.crypto.getRandomValues(new Uint16Array(1))[0]).toString(16), 4)
   }
 
 }

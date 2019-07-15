@@ -12,10 +12,12 @@ import { Types } from '../types.js';
 
 class ReplicatedSetBase {
   constructor(identity, replicationId) {
+    this.type = Types.REPL_SET();
+
     this.initializeReplicable();
 
     this.operationalSet = new OperationalSet();
-    this.type = Types.REPL_SET();
+
 
     if (identity !== undefined) {
       this.create(identity, replicationId);
@@ -23,11 +25,19 @@ class ReplicatedSetBase {
   }
 
   add(element, author) {
-    this.addOperation(this.operationalSet.createAddOp(element), [], author);
+    let op = this.operationalSet.createAddOp(element);
+    if (op !== null) {
+      this.addOperation(op, [], author);
+    }
+
   }
 
   remove(element, author) {
-    this.addOperation(this.operationalSet.createRemoveOp(element), [], author);
+    let op = this.operationalSet.createRemoveOp(element);
+    if (op !== null) {
+      this.addOperation(op, [], author);
+    }
+
   }
 
   apply(op) {
@@ -55,11 +65,11 @@ const ReplicatedSet = replicable(ReplicatedSetBase);
 
 class ReplicatedObjectSetBase {
   constructor(identity, replicationId) {
+    this.type = Types.REPL_OBJECT_SET();
 
     this.initializeReplicable();
     this.operationalSet = new OperationalSet();
     this.objects = {};
-    this.type = Types.REPL_OBJECT_SET();
 
     if (identity !== undefined) {
       this.create(identity, replicationId);
@@ -67,11 +77,18 @@ class ReplicatedObjectSetBase {
   }
 
   add(storable, author) {
-    this.addOperation(this.operationalSet.createAddOp(storable.fingerprint()), [storable], author);
+    let op = this.operationalSet.createAddOp(storable.fingerprint());
+    if (op !== null) {
+      this.addOperation(op, [storable], author);
+    }
   }
 
   remove(storable, author) {
-    this.addOperation(this.operationalSet.createRemoveOp(storable.fingerprint()), [], author);
+    let op = this.operationalSet.createRemoveOp(storable.fingerprint());
+    if (op !== null) {
+      this.addOperation(op, [], author);
+    }
+
   }
 
   removeFingarprint(fingerprint, author) {

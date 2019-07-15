@@ -7,7 +7,7 @@ class NetworkManager {
     this.nodes = new Map();
   }
 
-  getNetworkNode(endpoint) {
+  getNode(endpoint) {
     if (this.nodes.has(endpoint.url())) {
       return this.nodes.get(endpoint.url());
     } else {
@@ -26,7 +26,6 @@ class NetworkNode {
     this.connections = new Map();
     this.connectionCallback   = null;
     this.listener = null;
-
   }
 
   setConnectionCallback(connectionCallback) {
@@ -35,6 +34,7 @@ class NetworkNode {
 
   start() {
     this.listener = this.linkupManager.getListener(this.localEndpoint);
+
     this.listener.setDefaultCallback((callId, message, replyServerUrl, replyLinkupId) => {
       var remoteEndpoint = new Endpoint(replyServerUrl, replyLinkupId);
       var caller = this.linkupManager.getCaller(remoteEndpoint, this.localEndpoint);
@@ -56,6 +56,10 @@ class NetworkNode {
     var conn = this._getConnection(callId);
 
     conn.open(callId, listener, caller, 'peer-main')
+  }
+
+  dispose(callId) {
+    this.connections.delete(callId);
   }
 
   _getConnection(callId) {

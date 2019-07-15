@@ -13,7 +13,7 @@ class WebRTCConnection {
 
   constructor(callId, readyCallback) {
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.TRACE());
+    this.logger.setLevel(Logger.INFO());
 
     this.localCallId  = callId;
     this.remoteCallId = null;
@@ -47,13 +47,38 @@ class WebRTCConnection {
     }
   }
 
+  getLocalCallId() {
+    return this.localCallId;
+  }
+
+  getRemoteCallId() {
+    return this.remoteCallId;
+  }
+
+  initiatedLocally() {
+    return this.initiator;
+  }
+
+  // possible values: 'unknown', 'connecting', 'open', 'closed', 'closing';
+  channelStatus() {
+    if (this.channel === null) {
+      return 'unknown';
+    } else {
+      return this.channel.readyState;
+    }
+  }
+
+  channelIsOperational() {
+    return this.channel !== null && this.channel.readyState === 'open';
+  }
+
   setMessageCallback(messageCallback) {
     this.messageCallback = messageCallback;
 
     if (messageCallback != null) {
       while (this.incomingMessages.length > 0) {
         var ev = this.incomingMessages.shift();
-        messageCallback(ev);
+        messageCallback(ev.data);
       }
     }
   }
@@ -101,7 +126,9 @@ class WebRTCConnection {
   }
 
   close() {
-
+    if (this.conneciton !== null) {
+      this.connection.close();
+    }
   }
 
   send(message) {

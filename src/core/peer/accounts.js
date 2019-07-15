@@ -49,6 +49,7 @@ class AccountBase {
   async pull(store) {
     await this.instances.pull(store);
     await this.linkup.pull(store);
+    await this.datasets.pull(store);
     return this;
   }
 
@@ -56,6 +57,7 @@ class AccountBase {
     await store.save(this);
     await this.instances.flush(store);
     await this.linkup.flush(store);
+    await this.datasets.flush(store);
     return this;
   }
 
@@ -63,15 +65,22 @@ class AccountBase {
     await store.save(this);
     await store.instance.sync(store);
     await store.linkup.sync(store);
+    await store.datasets.flush(store);
     return this;
   }
 
   subscribe(store) {
-    return this.instances.subscribe(store);
+    this.instances.subscribe(store);
+    this.linkup.subscribe(store);
+    this.datasets.subscribe(store);
+
+    return this;
   }
 
   unsubscribe(store) {
-    return this.instances.unsusbscribe(store);
+    this.instances.unsusbscribe(store);
+    this.linkup.subscribe(store);
+    this.datasets.subscribe(store);
   }
 
   addLinkupServer(url, priority) {
@@ -103,6 +112,14 @@ class AccountBase {
     } else {
       return null;
     }
+  }
+
+  getInstances() {
+    return this.instances;
+  }
+
+  getDatasets() {
+    return this.datasets;
   }
 
   serialize() {
