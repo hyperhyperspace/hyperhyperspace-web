@@ -9,7 +9,7 @@ import { IdentityService } from './identity.js';
 import { Identity, IdentityKey } from './identity.js';
 import { Account, AccountInstance } from './accounts.js';
 
-import { ConsoleService } from '../../services/console.js';
+import { ConsoleService } from '../../services/development/console.js';
 
 import Logger from '../util/logging';
 
@@ -94,19 +94,26 @@ class Peer {
 
     this.services = new Map();
 
+    this.waitForInit = null;
+
   }
 
   start() {
-    let ownInit = this._init();
 
-    this.initialization = ownInit.then(() => {
-      let servicesToInit = Array.from(this.services.values());
-      Promise.all(servicesToInit.map(s => s.start()));
-    });
+    if (this.waitForInit === null) {
+      let ownInit = this._init();
 
-    return this.initialization.then(() => {
-      this.logger.info('All services started for instance ' + this.fingerprint);
-    });
+      this.waitForInit = ownInit
+      .then(() => {
+        let servicesToInit = Array.from(this.services.values());
+        Promise.all(servicesToInit.map(s => s.start()));
+      }).then(() => {
+        this.logger.info('All services started for instance ' + this.fingerprint);
+        return this;
+      });
+    }
+
+    return this.waitForInit;
 
   }
 
@@ -144,6 +151,10 @@ class Peer {
 
   deregisterService(name) {
     this.services.delete(name);
+  }
+
+  getService(name) {
+    return this.services.get(name);
   }
 
   routeIncomingMessage(source, destination, wireFmt) {

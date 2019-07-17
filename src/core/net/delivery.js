@@ -64,6 +64,8 @@ class DeliveryService {
 
     this.networkNode.setConnectionCallback(conn => this.receiveConnection(conn));
 
+    this.waitForInit = null;
+
   }
 
   getServiceName() {
@@ -71,12 +73,16 @@ class DeliveryService {
   }
 
   start() {
-    this.networkNode.start();
-    return this;
+    if (this.waitForInit === null) {
+      this.networkNode.start();
+      this.waitForInit = Promise.resolve(this);
+    }
+
+    return this.waitForInit;
   }
 
   waitUntilStartup() {
-    return Promise.resolve(this);
+    return this.waitForInit;
   }
 
   getPendingMessagesForIdentity(targetId) {

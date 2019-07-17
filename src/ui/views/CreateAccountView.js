@@ -20,7 +20,7 @@ import withMobileDialog from '@material-ui/core/withMobileDialog';
 
 import logo32 from '../components/images/logo32.png';
 
-class InitView extends React.Component {
+class CreateAccountView extends React.Component {
 
   constructor(props) {
     super(props);
@@ -124,6 +124,10 @@ class InitView extends React.Component {
     );
   }
 
+  doAction() {
+    
+  }
+
 }
 
-export default withWidth()(InitView);
+export default withWidth()(CreateAccountView);

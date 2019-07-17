@@ -126,7 +126,9 @@ class Store {
     if (external === undefined) {
       external = {};
     }
+    
     this.logger.debug('(' + this.accountInstanceFP + ') about to load ' + fingerprint + ' externals: ' + Object.keys(external).toString());
+
     return this.loadWithDependencies(fingerprint, new Set(), this.loadStorageLiteral(fingerprint), {}, {}, external)
                   .then(obj => {
                     this.logger.trace('(' + this.accountInstanceFP + ') done loading ' + fingerprint);

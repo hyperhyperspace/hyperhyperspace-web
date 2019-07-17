@@ -118,6 +118,10 @@ class AccountBase {
     return this.instances;
   }
 
+  getLinkup() {
+    return this.linkup;
+  }
+
   getDatasets() {
     return this.datasets;
   }

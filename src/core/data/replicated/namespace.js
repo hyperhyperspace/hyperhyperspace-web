@@ -60,7 +60,7 @@ class ReplicatedNamespaceBase {
   }
 
   get(name) {
-    var result;
+    var result = undefined;
     let options = this.namespace[name];
 
     if (Object.keys(options).length > 1) {

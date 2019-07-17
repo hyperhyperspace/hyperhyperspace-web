@@ -5,6 +5,8 @@ import { storable } from './storage.js';
 import { OperationalSet } from './operational/set.js';
 import { Types } from './types.js';
 
+import { DeliveryService } from '../net/delivery.js';
+
 import Logger from '../util/logging';
 
 class MetaOp {
@@ -561,10 +563,16 @@ class ReplicationService {
   }
 
   start() {
-    this.logger.info('Starting replication service for instance ' + this.peer.getAccountInstanceFingerprint());
-    this.waitForInit = this._init().then(() => {
-      this.logger.trace('Started replication service for instance ' + this.peer.getAccountInstanceFingerprint() + ', source is ' + this.source.fingerprint());
-    });
+
+    if (this.waitForInit === null) {
+      this.logger.info('Starting replication service for instance ' + this.peer.getAccountInstanceFingerprint());
+      this.waitForInit = this._init().then(() => {
+        this.logger.trace('Started replication service for instance ' + this.peer.getAccountInstanceFingerprint() + ', source is ' + this.source.fingerprint());
+        return this;
+      });
+    }
+
+    return this.waitForInit;
   }
 
   async waitUntilStartup() {
@@ -572,6 +580,9 @@ class ReplicationService {
   }
 
   async _init() {
+
+    await this.peer.getService(DeliveryService.SERVICE_NAME).waitUntilStartup();
+
     let instance = await this.store.load(this.peer.getAccountInstanceFingerprint());
     this.source = instance.getAccount().getIdentity();
 
@@ -649,15 +660,12 @@ class ReplicationService {
               // but that is not happening, so we always do it here
 
               //if (!prevOp.equals(operation)) {
-                console.log('enqueuing PREV operation ' + prevOp.fingerprint() + ' destination:' + operation.getTarget().getRoot().fingerprint());
                 try {
                   this.storePendingAndEnque(prevOp, operation.getTarget().getRoot());
                 } catch(e) {
                   this.logger.error('could not ship ' + prevOp.fingerprint());
                   console.log(e);
                 }
-
-                console.log('enqueued');
               //} else {
               //  console.log('enqueuing PREV operation ' + prevOp.fingerprint() + ' destination:' + operation.getTarget().getRoot().fingerprint());
               //}
@@ -831,7 +839,7 @@ class DestinationShippingQueue {
   constructor(destination, replicables, sendObject, sendAnswer) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.INFO());
+    this.logger.setLevel(Logger.DEBUG());
 
     this.destination = destination;
     this.replicables = replicables;

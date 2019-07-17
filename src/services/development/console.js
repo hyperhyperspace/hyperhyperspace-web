@@ -6,6 +6,7 @@ class ConsoleService {
 
   constructor(peer) {
     this.peer = peer;
+    this.waitForInit = null;
   }
 
   receiveMessage(source, destination, service, contents) {
@@ -17,11 +18,14 @@ class ConsoleService {
   }
 
   start() {
-    return this;
+    if (this.waitForInit === null) {
+      this.waitForInit = Promise.resolve(this);
+      return this.waitForInit;  
+    }
   }
 
   waitUntilStartup() {
-    return Promise.resolve(this);
+    return this.waitForInit;
   }
 }
 

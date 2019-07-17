@@ -7,7 +7,7 @@ import 'typeface-roboto';
 
 import AllChatsView from './views/AllChatsView.js';
 import ChatView from './views/ChatView.js';
-import InitView from './views/InitView.js';
+import CreateAccountView from './views/CreateAccountView.js';
 
 import ChatsController from './controllers/ChatsController.js';
 
@@ -33,7 +33,7 @@ class App extends Component {
               <Route path="/chat/:name/:id" render={({match}) => <ChatView controller={this.chatsController} match={match} key={'chat-id-' + match.id}/>} />
               <Route path="/new-chat" exact={true} render={({match}) => <AllChatsView controller={this.chatsController} match={match} /> } />
               <Route path="/new-chat/:name/:id" render={({match}) => <ChatView controller={this.chatsController} match={match} key={'chat-id-' + match.id}/>} />
-              <Route path="/init" exact={true} render={({match}) => <InitView />} />
+              <Route path="/create-account" exact={true} render={({match}) => <CreateAccountView />} />
               <Redirect from="/" to="/chat" />
             </Switch>
           </HashRouter>

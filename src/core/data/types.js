@@ -6,6 +6,8 @@ import { ReplicatedSingleton } from './replicated/singleton.js';
 import { ReplicatedNamespace } from './replicated/namespace.js';
 import { ReplicatedObjectStream } from './replicated/stream.js';
 
+import { Contact } from '../../services/people/contacts.js';
+
 const _ACCOUNT            = 'account';
 const _ACCOUNT_INSTANCE   = 'account-instance';
 const _IDENTITY           = 'identity';
@@ -17,6 +19,8 @@ const _REPL_OBJECT_SET    = 'repl-object-set';
 const _REPL_SINGLETON     = 'repl-singleton';
 const _REPL_NAMESPACE     = 'repl-namespace';
 const _REPL_OBJECT_STREAM = 'repl-object-stream';
+
+const _CONTACT            = 'people-contact';
 
 class Types {
   // core system
@@ -33,6 +37,8 @@ class Types {
   static REPL_OBJECT_STREAM() { return _REPL_OBJECT_STREAM; }
 
   // contacts
+
+  static CONTACT()            { return _CONTACT; }
 
   // chat
 
@@ -67,6 +73,8 @@ class Types {
         typed = new ReplicatedNamespace();
       } else if (serial.type === _REPL_OBJECT_STREAM) {
         typed = new ReplicatedObjectStream();
+      } else if (serial.type === _CONTACT) {
+        typed = new Contact();
       } else {
         throw new Error("Unknown object type '" + serial.type + "'");
       }
