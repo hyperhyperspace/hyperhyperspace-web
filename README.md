@@ -19,6 +19,6 @@ What we have:
  
 * Chat single-page application UI, created using React and Material-UI
 
-Working:
+Working on:
 
 Integrating the UI with the P2P in-browser backend.
