@@ -19,7 +19,7 @@ import { Crypto } from '../../peer/crypto.js';
 
 class ReplicatedNamespaceBase {
 
-  constructor(identity, replicationId) {
+  constructor(identity, params) {
 
     this.type = Types.REPL_NAMESPACE();
 
@@ -30,7 +30,7 @@ class ReplicatedNamespaceBase {
     this.namespace = {};
 
     if (identity !== undefined) {
-        this.create(identity, replicationId);
+        this.create(identity, params);
     }
 
   }
@@ -52,7 +52,14 @@ class ReplicatedNamespaceBase {
     if (op !== null) {
       this.addOperation(op, [replicable], this.getCreator());
     }
+  }
 
+  addReplicatedObjectSet(name) {
+
+  }
+
+  _addAndSet() {
+    
   }
 
   get(name, type) {

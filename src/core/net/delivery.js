@@ -20,7 +20,7 @@ class DeliveryService {
   constructor(peer, identity, linkupServer, verifiedMessageCallback) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.INFO());
+    this.logger.setLevel(Logger.TRACE());
 
     this.verifiedMessageCallback      = verifiedMessageCallback;
     this.handleConnectionFailureBound = this.handleConnectionFailure.bind(this);
@@ -321,7 +321,7 @@ class VerifiedConnection {
   constructor(identity, connection, messageCallback, readyCallback, rejectCallback, expectedRemoteFP) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.INFO());
+    this.logger.setLevel(Logger.TRACE());
 
     this.connection       = connection;
     this.expectedRemoteFP = expectedRemoteFP === undefined? null : expectedRemoteFP;

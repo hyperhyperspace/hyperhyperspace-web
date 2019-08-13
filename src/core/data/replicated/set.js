@@ -11,7 +11,7 @@ import { Types } from '../types.js';
 */
 
 class ReplicatedSetBase {
-  constructor(identity, replicationId) {
+  constructor(identity, params) {
     this.type = Types.REPL_SET();
 
     this.initializeReplicable();
@@ -20,7 +20,7 @@ class ReplicatedSetBase {
 
 
     if (identity !== undefined) {
-      this.create(identity, replicationId);
+      this.create(identity, params);
     }
   }
 
@@ -64,7 +64,7 @@ class ReplicatedSetBase {
 const ReplicatedSet = replicable(ReplicatedSetBase);
 
 class ReplicatedObjectSetBase {
-  constructor(identity, replicationId) {
+  constructor(identity, params) {
     this.type = Types.REPL_OBJECT_SET();
 
     this.initializeReplicable();
@@ -72,7 +72,7 @@ class ReplicatedObjectSetBase {
     this.objects = {};
 
     if (identity !== undefined) {
-      this.create(identity, replicationId);
+      this.create(identity, params);
     }
   }
 

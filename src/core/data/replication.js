@@ -7,7 +7,8 @@ import { Types } from './types.js';
 
 import { DeliveryService } from '../net/delivery.js';
 
-import Logger from '../util/logging';
+import Timestamps from '../util/timestamps.js';
+import Logger from '../util/logging.js';
 
 class MetaOp {
 
@@ -236,6 +237,7 @@ class ReplicaControl {
   constructor(replicable) {
 
     this.replicable = null;
+    this.receiverSetIsPublic = true;
     this.admins     = {};
     this.emitters   = {};
     this.receivers  = new OperationalSet();
@@ -244,6 +246,14 @@ class ReplicaControl {
     if (replicable !== undefined) {
       this.replicable = replicable;
     }
+  }
+
+  setReceiverSetIsPublic(receiverSetIsPublic) {
+    this.receiverSetIsPublic = receiverSetIsPublic;
+  }
+
+  getReceiverSetIsPublic() {
+    return this.receiverSetIsPublic;
   }
 
   apply(op) {
@@ -352,6 +362,7 @@ function replicable(Class) {
         this.initializeStorable();
         this.replicationId = null;
         this.creator       = null;
+        this.params        = {};
 
         this.control = null;
         this.pending = null;
@@ -360,19 +371,28 @@ function replicable(Class) {
     }
 
     // should be called from the replicable class' constructor
-    create(identity, replicationId) {
+    create(identity, params) {
 
       this.tag(ReplicationService.REPL_OBJECT_TAG);
 
+      if (params === undefined) {
+        params = {};
+      }
+
       this.creator = identity;
       this.addDependency(identity);
-      if (replicationId === undefined) {
+      if (params['replicationId'] === undefined) {
         this.replicationId = uuid();
       } else {
-        this.replicationId = replicationId;
+        this.replicationId = params['replicationId'];
       }
 
       this.control = new ReplicaControl(this);
+
+      if (params['receiverSetIsPublic'] !== undefined) {
+        this.control.setReceiverSetIsPublic(params['receiverSetIsPublic']);
+      }
+
       this.pending = [];
       this.signForIdentity(this.creator);
 
@@ -502,7 +522,7 @@ function replicable(Class) {
 
       serial['creator']        = this.creator.fingerprint();
       serial['replication-id'] = this.replicationId;
-
+      serial['public-receiver-set'] = this.control.getReceiverSetIsPublic().toString();
       return serial;
     }
 
@@ -511,6 +531,7 @@ function replicable(Class) {
       this.replicationId = serial['replication-id'];
 
       this.control = new ReplicaControl(this);
+      this.control.setReceiverSetIsPublic(serial['public-receiver-set'] === 'true');
       this.pending = [];
 
       super.deserialize(serial);
@@ -595,18 +616,24 @@ class ReplicationService {
     }
 
     let dps = await this.shippingStatusStore.loadAll()
-    dps.sort((dp1, dp2) => (dp1.timestamp - dp2.timestamp));
+    console.log('retrieved pending deliveries:');
 
+    dps.sort((dp1, dp2) => Timestamps.compare(dp1.timestamp, dp2.timestamp));
+    console.log(dps);
     for (let dp of dps) {
-      if (this.source.fingerprint() === dp.sourceFP) {
-
-        let destination = await this.store.load(dp.destinationFP);
+      console.log('attempting:');
+      console.log(dp);
+      console.log(this.source.fingerprint());
+      console.log(dp.source);
+      if (this.source.fingerprint() === dp.source) {
+        console.log('adding');
+        let destination = await this.store.load(dp.destination);
 
         let shipper = this._getShipper(destination);
         let p = {}
 
-        p.hash = Pending.generateHash(dp.objectFP, dp.sourceFP, dp.destinationFP);
-        p.object = await this.store.load(dp.objectFP);
+        p.hash = Pending.generateHash(dp.object, dp.source, dp.destination);
+        p.object = await this.store.load(dp.object);
         p.source = this.source;
         p.destination = destination;
         p.timestamp = p.object.getTimestamp();
@@ -629,6 +656,26 @@ class ReplicationService {
     this.registerReplicable(replicable);
   }
 
+  static _shouldSend(source, destination, op) {
+    let control = op.getReplicable().getReplicaControl();
+    if (source.equals(destination)) {
+      return false;
+    } else if (!op.isControl() || op.getAction() !== ControlOp.RECEIVER_SET) {
+      return true;
+    } else if (op.getReplicable().getCreator().equals(destination) ||
+               control.isAdmin(destination)  ||
+               control.isEmitter(destination)) {
+      return true;
+    } else {
+      if (control.getReceiverSetIsPublic()) {
+        return true;
+      } else {
+        return op.getTarget().equals(destination);
+      }
+    }
+
+  }
+
   processNewOperation(operation) {
 
     if (this.receivedObjects.has(operation.fingerprint())) {
@@ -640,7 +687,7 @@ class ReplicationService {
       operation.getReplicable().getReplicaControl().getReceivers().forEach(
         receiver => {
           let destination = receiver.getRoot();
-          if (!this.source.equals(destination)) {
+          if (ReplicationService._shouldSend(this.source, destination, operation)) {
             this.storePendingAndEnque(operation, destination);
           }
         }
@@ -652,6 +699,7 @@ class ReplicationService {
         this.store.loadAllByTag(MetaOp.tagFor(operation.getReplicable())).then(
           prevOperations => {
 
+            let newTargetDestination = operation.getTarget().getRoot();
             for (let prevOp of prevOperations) {
               // FIXME: since callbacks are fired _after_ saving an object,
               // the subscription should have added the new receiver by the
@@ -661,7 +709,10 @@ class ReplicationService {
 
               //if (!prevOp.equals(operation)) {
                 try {
-                  this.storePendingAndEnque(prevOp, operation.getTarget().getRoot());
+                  if (ReplicationService._shouldSend(this.source, newTargetDestination, prevOp)) {
+                    this.storePendingAndEnque(prevOp, newTargetDestination);
+                  }
+
                 } catch(e) {
                   this.logger.error('could not ship ' + prevOp.fingerprint());
                   console.log(e);

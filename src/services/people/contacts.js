@@ -3,6 +3,53 @@ import { storable } from '../../core/data/storage.js';
 import { ReplicationService } from '../../core/data/replication.js';
 import { ReplicatedObjectSet } from '../../core/data/replicated/set.js';
 
+/******************************************************
+
+A: sends contact request
+B: receives conctact request
+
+1. A packs:  - his acct identity,
+             - his info (must match identity),
+             - a working linkup host,
+             - a random secret
+
+into an URL that can be send out-of-band and opened in
+the hyperhyper.space website.
+
+At the same time, A stores the random secret along of
+a note of to whom the invite was sent to, to compare
+later.
+
+2. B opens URL and owner decides if he wants to
+   accept contact or not
+
+3.1 To reject contact request, B sends a message over
+    to A rejecting invitation for the received shared
+    secret. END.
+3.2 To ignore a contact request, B does nothing. END.
+3.3 To accept a contact request, B packs:
+
+    - his acct info,
+    - the received random secret
+
+    and sends this information to A.
+
+4. A checks the received random secret against the
+   stored secrets and adds the account to the list
+   of known contacts if it matches any, also
+   informing the owner who can invalidate the action
+   if the received account's information is not what
+   he expected. Finally he sends his own account
+   information to B so he can do the same.
+
+5. B checks that the received account has the same
+   identity and name as in the original URL packed
+   info, and finally adds A's info to the list of
+   known accounts.
+
+*******************************************************/
+
+
 const CONTACTS_SET = 'people.contacts';
 
 class ContactsService {
@@ -15,6 +62,8 @@ class ContactsService {
 
     this.account = null;
     this.contacts = null;
+    this.receivedContactRequests = null;
+    this.sentContactRequests     = null;
 
     this.waitForInit = null;
   }
@@ -63,11 +112,42 @@ class ContactsService {
     this.contacts = datasets.get(CONTACTS_SET);
     if (this.contacts === undefined) {
       let replId = datasets.getReplicationIdFor(CONTACTS_SET, Types.REPL_OBJECT_SET());
-      this.contacts = new ReplicatedObjectSet(this.account.getIdentity(), replId);
+      this.contacts = new ReplicatedObjectSet(this.account.getIdentity(), {'replicationId': replId});
       datasets.set(CONTACTS_SET, this.contacts);
 
       await this.account.push(this.store);
     }
+  }
+}
+
+class SentContactRequestBase {
+  constructor(sender, receiverName, senderName) {
+    if (sender !== undefined) {
+      this.sender       = sender;
+      this.receiverName = receiverName;
+    }
+  }
+}
+
+class ContactRequestMessageBase {
+  constructor(senderIdFP, senderName, challenge) {
+    this.senderIdFP = senderIdFP === undefined? null : senderIdFP;
+    this.senderName = senderName === undefined? null : senderName;
+    this.challenge = challenge   === undefined? null : challenge;
+  }
+
+  serialize() {
+    return {
+      'senderIdFP': this.senderIdFP,
+      'senderName': this.senderName,
+      'challenge' : this.challenge,
+    }
+  }
+
+  deserialize(serial) {
+    this.senderIdFP = serial['senderIdFP'];
+    this.senderName = serial['senderName'];
+    this.challenge  = serial['challenge'];
   }
 }
 

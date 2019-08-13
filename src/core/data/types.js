@@ -42,6 +42,11 @@ class Types {
 
   // chat
 
+
+  static constructorForType(type) {
+    
+  }
+
   static deserializeWithType(serial, deps, foundKeys) {
 
     var typed = null;

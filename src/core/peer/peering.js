@@ -71,7 +71,7 @@ class PeerManager {
 
 }
 
-const _LINKUP_SERVER = 'ws://localhost:8765';
+const _LINKUP_SERVER = 'ws://localhost:3002';
 //const _LINKUP_SERVER = 'wss://mypeer.net';
 
 class Peer {
