@@ -6,7 +6,7 @@ import AllChats from '../components/AllChats.js';
 
 import AllChatsController from '../controllers/AllChatsController.js';
 import { InviteInfo } from '../../services/people/contacts.js';
-
+import ChatController from '../controllers/ChatController.js';
 
 
 class AllChatsView extends React.Component {
@@ -15,10 +15,17 @@ class AllChatsView extends React.Component {
     // props.match.params.*
 
     this.controller = new AllChatsController(props.control);
+    this.chatController     = new ChatController(props.control);
+
 
     this.controller.addStateCallback(() => {
       this.setState({pendingInvites: this.controller.getPendingInvites(),
                      contacts: this.controller.getContacts()});
+    });
+
+
+    this.chatController.addStateCallback(() => {
+      this.setState({chatsSummary: this.chatController.getChatSummary()});
     });
 
     var receivedInviteInfo = null;
@@ -36,6 +43,12 @@ class AllChatsView extends React.Component {
                     receivedInviteInfo: receivedInviteInfo
                  };
 
+
+     this.chatController.init(() => {
+       this.setState({chatsSummary: this.chatController.getChatSummary(),
+                      loadingChatsSummary: false
+                    });
+                  });
     /*this.controller = props.controller;
 
     this.controller.queryView({view: this.controller.VIEW_CHATS_SUMMARY(), callback: this.receiveChatsSummary});*/

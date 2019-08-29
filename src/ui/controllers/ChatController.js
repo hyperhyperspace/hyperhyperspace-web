@@ -81,7 +81,7 @@ class ChatController {
         counterpartName: counterpart.getParam('name'),
         userIsSender: userIsSender,
         content: chat.content,
-        time: '',
+        time: 'Just now',
         isSent: true,
         isReceived: true,
         isRead: false
