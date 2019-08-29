@@ -13,7 +13,7 @@ class WebRTCConnection {
 
   constructor(callId, readyCallback) {
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.DEBUG());
+    this.logger.setLevel(Logger.INFO());
 
     this.localCallId  = callId;
     this.remoteCallId = null;
@@ -219,13 +219,14 @@ class WebRTCConnection {
     this.connection.setRemoteDescription(description);
     if (! this.initiator) {
       this._setUpLinkupListener()
+      //FIXME: createAnswer parece estar llamandose 2 veces en algunos casos
       this.connection.createAnswer().then(
         (description) => {
           this.connection.setLocalDescription(description);
           this._signalConnectionDescription(description);
         },
         (error) => {
-          this.logger.error('error generating answer: ' + error);
+          this.logger.error('error generating answer: ' + error + ' for callId ' + this.remoteCallId);
         }
       );
     }

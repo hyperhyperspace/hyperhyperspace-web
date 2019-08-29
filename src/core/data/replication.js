@@ -102,8 +102,12 @@ class DataOpBase extends MetaOp {
   }
 
   verify() {
+
+    let replicable = this.replicalbe.getReplicableForControl();
+
     return this.authOp !== null &&
-           this.replicable.equals(this.authOp.getReplicable()) &&
+           this.replicable.getReplicableForControl()
+                             .equals(this.authOp.getReplicable()) &&
            this.authOp.verify() &&
            this.authOp.getAction() === ControlOp.ADD_EMITTER &&
            this.authOp.getTarget().equals(this.getAuthor()) &&
@@ -303,6 +307,10 @@ class ReplicaControl {
     return r;
   }
 
+  getReceiverFingerprints() {
+    return this.receivers.snapshot();
+  }
+
   createAddAdminOp(target, author) {
     var authOp = null;
     if (!author.equals(this.replicable.getCreator())) {
@@ -339,8 +347,8 @@ class ReplicaControl {
     }
   }
 
-  createDataMutationOp(payload, dependencies, author) {
-    return new DataOp(this.replicable, author, this.emitters[author.fingerprint()],
+  createDataMutationOp(replicable, payload, dependencies, author) {
+    return new DataOp(replicable, author, this.emitters[author.fingerprint()],
                       payload, dependencies);
   }
 
@@ -357,80 +365,118 @@ function replicable(Class) {
       this.initializeReplicable();
     }
 
-    initializeReplicable() {
-      if (this.replicationId === undefined) {
-        this.initializeStorable();
-        this.replicationId = null;
-        this.creator       = null;
-        this.params        = {};
-
-        this.control = null;
-        this.pending = null;
-      }
-      this.applyCallback = (op) => this.applyMeta(op);
-    }
-
-    // should be called from the replicable class' constructor
-    create(identity, params) {
-
-      this.tag(ReplicationService.REPL_OBJECT_TAG);
+    initializeReplicable(params) {
 
       if (params === undefined) {
         params = {};
       }
 
+      this.params = params;
+
+      if (this.replicationId === undefined) {
+        let storableParams = {};
+        if ('replicationId' in this.params) {
+          storableParams['noTimestamp'] = true;
+        }
+        this.initializeStorable(storableParams);
+        this.replicationId = null;
+        this.creator       = null;
+        this.parentReplicable = null;
+
+        this.control = null;
+        this.pending = null;
+
+        this.dataCallbacks = new Set();
+      }
+      this.applyCallback = (op) => this.applyMeta(op);
+    }
+
+    // should be called from the replicable class' constructor
+    create(identity) {
+
+      this.tag(ReplicationService.REPL_OBJECT_TAG);
+
       this.creator = identity;
       this.addDependency(identity);
-      if (params['replicationId'] === undefined) {
+      if (this.params['replicationId'] === undefined) {
         this.replicationId = uuid();
       } else {
-        this.replicationId = params['replicationId'];
+        this.replicationId = this.params['replicationId'];
       }
 
-      this.control = new ReplicaControl(this);
+      if (this.params['parentReplicable'] === undefined) {
+        this.parentReplicable = null;
+        this.control = new ReplicaControl(this);
 
-      if (params['receiverSetIsPublic'] !== undefined) {
-        this.control.setReceiverSetIsPublic(params['receiverSetIsPublic']);
+        if (this.params['receiverSetIsPublic'] !== undefined) {
+          this.control.setReceiverSetIsPublic(this.params['receiverSetIsPublic']);
+        }
+      } else {
+        this.parentReplicable = this.params['parentReplicable'];
+        this.addDependency(this.parentReplicable);
+        this.control = null;
+        this.tag(ReplicationService.tagForChildOf(this.parentReplicable));
       }
+
 
       this.pending = [];
       this.signForIdentity(this.creator);
 
-      this.addReceiver(this.creator, this.creator);
+      if (this.parentReplicable === null) {
+        this.addReceiver(this.creator, this.creator);
+      }
+
+    }
+
+    isReplicable() {
+      return true;
     }
 
     // control operations
     // need to be an owner to invoke
 
+    _applyAndRecord(op) {
+      if (op !== null) {
+        this.applyMeta(op);
+        this.pending.push(op);
+      }
+    }
+
     addAdmin(target, author) {
-      this.pending.push(
-        this.control.createAddAdminOp(target, author)
-      );
+      if (this.parentReplicable !== null) {
+        throw new Error('Trying to add admin in child replicable.');
+      }
+      let op = this.control.createAddAdminOp(target, author);
+      this._applyAndRecord(op);
     }
 
     addEmitter(target, author) {
-      this.pending.push(
-        this.control.createAddEmitterOp(target, author)
-      );
+      if (this.parentReplicable !== null) {
+        throw new Error('Trying to add admin in child replicable.');
+      }
+      let op = this.control.createAddEmitterOp(target, author);
+      this._applyAndRecord(op);
     }
 
     addReceiver(target, author) {
-      let op = this.control.createAddReceiverOp(target, author);
-      if (op !== null) {
-        this.pending.push(op);
+      if (this.parentReplicable !== null) {
+        throw new Error('Trying to add admin in child replicable.');
       }
+      let op = this.control.createAddReceiverOp(target, author);
+      this._applyAndRecord(op);
     }
 
     removeReceiver(target, author) {
-      let op = this.control.createRemoveReceiverOp(target, author);
-      if (op !== null) {
-        this.pending.push(op);
+      if (this.parentReplicable !== null) {
+        throw new Error('Trying to add admin in child replicable.');
       }
+      let op = this.control.createRemoveReceiverOp(target, author);
+      this._applyAndRecord(op);
     }
 
     addOperation(payload, dependencies, author) {
-      let op = this.control.createDataMutationOp(payload, dependencies, author);
-      this.pending.push(op);
+      let op = this.getReplicaControl().createDataMutationOp(this, payload, dependencies, author);
+      this._applyAndRecord(op);
     }
 
     getCreator() {
@@ -445,16 +491,67 @@ function replicable(Class) {
     }
 
     getReplicaControl() {
-      return this.control;
+      if (this.parentReplicable === null){
+        return this.control;
+      } else {
+        return this.parentReplicable.getReplicaControl();
+      }
+
     }
 
+    setParentReplicable(parentReplicable) {
+      if (!this.parentReplicable.equals(parentReplicable)) {
+        throw new Error("Delegating control on another replicable than the parent");
+      }
+      this.parentReplicable = parentReplicable;
+      this.delegatedControl = true;
+    }
+
+    getParentReplicable() {
+      return this.parentReplicable;
+    }
+
+    getReplicableForControl() {
+
+      if (this.parentReplicable === null) {
+        return this;
+      } else {
+        return this.parentReplicable;
+      }
+
+    }
+
+    addDataCallback(callback) {
+      this.dataCallbacks.add(callback);
+    }
+
+    removeDataCallback(callback) {
+      this.dataCallbacks.remove(callback);
+    }
 
     applyMeta(op) {
       if (op.isControl()) {
         this.control.apply(op);
       } else {
+        this._replaceChildrensControl(op);
         this.apply(op);
+        this.dataCallbacks.forEach(callback => {
+          callback(this);
+        });
       }
+    }
+
+    _replaceChildrensControl(op) {
+      op.getDependencies().forEach(dependency => {
+
+        if (ReplicationService.isReplicable(dependency)) {
+          let replicable = dependency;
+          if (replicable.getParentReplicable() !== null &&
+              replicable.getParentReplicable().equals(this)) {
+            replicable.setParentReplicable(this);
+          }
+        }
+      });
     }
 
     flush(store) {
@@ -475,35 +572,80 @@ function replicable(Class) {
     }
 
     pull(store) {
-      return this._pullOnTag(MetaOp.tagFor(this), store);
+      var replicaControl = this;
+
+      if (this.parentReplicable !== null && !this.delegatedControl) {
+        return this.parentReplicable.pullControl(store)
+                   .then(() => {this._pullOnTag(MetaOp.tagFor(this), store);});
+      } else {
+        return this._pullOnTag(MetaOp.tagFor(this), store);
+      }
     }
 
     sync(store) {
-      return this.flush(store).then(this.pull(store));
+      return this.flush(store).then(() => {this.pull(store);});
     }
 
     subscribe(store) {
+
+      if (this.parentReplicable !== null && !this.delegatedControl) {
+        this.parentReplicable.subscribeControl(store);
+      }
+
       store.registerTagCallback(MetaOp.tagFor(this),
                                 this.applyCallback);
     }
 
+
+
     unsubscribe(store) {
+
+      if (this.parentReplicable !== null && !this.delegatedControl) {
+        this.parentReplicable.unsubscribeControl(store);
+      }
+
       store.deregisterTagCallback(MetaOp.tagFor(this),
                                   this.applyCallback);
     }
 
     subscribeControl(store) {
-      store.registerTagCallback(ControlOp.tagFor(this),
-                                this.applyCallback);
+      if (this.delegatedControl) {
+        throw new Error("This replicable object has delegated its control operations to another, it can't subscribe to control operations");
+      } else {
+        if (this.parentReplicable !== null) {
+          this.parentReplicable.subscribeControl(store);
+        } else {
+          store.registerTagCallback(ControlOp.tagFor(this),
+                                    this.applyCallback);
+        }
+      }
+
     }
 
     unsubscribeControl(store) {
-      store.deregisterTagCallback(ControlOp.tagFor(this),
-                                  this.applyCallback);
+      if (this.delegatedControl) {
+        throw new Error("This replicable object has delegated its control operations to another, it can't unsubscribe from control operations");
+      } else {
+        if (this.parentReplicable !== null) {
+          this.parentReplicalbe.unsubscribeControl(store);
+        } else {
+          store.deregisterTagCallback(ControlOp.tagFor(this),
+                                      this.applyCallback);
+        }
+      }
     }
 
     pullControl(store) {
-      return this._pullOnTag(ControlOp.tagFor(this), store);
+      if (this.delegatedControl) {
+        throw new Error("This replicable object has delegated its control operations to another, it can't pull them directly.");
+      } else {
+        if (this.parentReplicable !== null) {
+          return this.parentReplicable.pullControl(store);
+        } else {
+          return this._pullOnTag(ControlOp.tagFor(this), store);
+        }
+      }
+
     }
 
     _pullOnTag(tag, store) {
@@ -522,7 +664,13 @@ function replicable(Class) {
 
       serial['creator']        = this.creator.fingerprint();
       serial['replication-id'] = this.replicationId;
-      serial['public-receiver-set'] = this.control.getReceiverSetIsPublic().toString();
+
+      if (this.parentReplicable !== null) {
+        serial['parent-replicable'] = this.parentReplicable.fingerprint();
+      } else {
+        serial['public-receiver-set'] = this.control.getReceiverSetIsPublic().toString();
+      }
+
       return serial;
     }
 
@@ -530,8 +678,16 @@ function replicable(Class) {
       this.creator       = this.getDependency(serial['creator']);
       this.replicationId = serial['replication-id'];
 
-      this.control = new ReplicaControl(this);
-      this.control.setReceiverSetIsPublic(serial['public-receiver-set'] === 'true');
+      if ('parent-replicable' in serial) {
+        this.parentReplicable = this.getDependency(serial['parent-replicable']);
+        this.control          = null;
+      } else {
+        this.control = new ReplicaControl(this);
+        this.control.setReceiverSetIsPublic(serial['public-receiver-set'] === 'true');
+
+      }
+
+      this.delegatedControl = false;
       this.pending = [];
 
       super.deserialize(serial);
@@ -551,11 +707,20 @@ class ReplicationService {
   // the Store.
 
   static REPL_OBJECT_TAG = 'repl-object';
+  static REPL_CHILD_OF   = 'repl-child-of-';
+
+  static tagForChildOf(replicable) {
+    return ReplicationService.REPL_CHILD_OF + replicable.fingerprint();
+  }
+
+  static isReplicable(object) {
+    return ('isReplicable' in object && object.isReplicable());
+  }
 
   constructor(peer) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.DEBUG());
+    this.logger.setLevel(Logger.INFO());
 
     this.peer   = peer;
     this.source = null;
@@ -576,6 +741,8 @@ class ReplicationService {
     this.sendAnswerBound = this.sendAnswer.bind(this);
 
     this.waitForInit = null;
+
+    this.peer.registerService(this);
 
   }
 
@@ -616,17 +783,13 @@ class ReplicationService {
     }
 
     let dps = await this.shippingStatusStore.loadAll()
-    console.log('retrieved pending deliveries:');
 
     dps.sort((dp1, dp2) => Timestamps.compare(dp1.timestamp, dp2.timestamp));
-    console.log(dps);
+
     for (let dp of dps) {
-      console.log('attempting:');
-      console.log(dp);
-      console.log(this.source.fingerprint());
-      console.log(dp.source);
+
       if (this.source.fingerprint() === dp.source) {
-        console.log('adding');
+
         let destination = await this.store.load(dp.destination);
 
         let shipper = this._getShipper(destination);
@@ -644,10 +807,14 @@ class ReplicationService {
 
   registerReplicable(replicable) {
     this.logger.debug('source ' + this.source.fingerprint() + ' is registering replicable ' + replicable.fingerprint())
-    this.replicables[replicable.fingerprint()] = replicable;
 
-    replicable.subscribeControl(this.store);
-    replicable.pullControl(this.store);
+    if (replicable.getParentReplicable() === null) {
+      this.replicables[replicable.fingerprint()] = replicable;
+
+      replicable.subscribeControl(this.store);
+      replicable.pullControl(this.store);
+    }
+
 
     this.store.registerTagCallback(MetaOp.tagFor(replicable), this.processNewOperationBound);
   }
@@ -661,12 +828,22 @@ class ReplicationService {
     if (source.equals(destination)) {
       return false;
     } else if (!op.isControl() || op.getAction() !== ControlOp.RECEIVER_SET) {
+      // if it's a data op, or a control op not involving the receiver set,
+      // send to everybody
       return true;
     } else if (op.getReplicable().getCreator().equals(destination) ||
                control.isAdmin(destination)  ||
                control.isEmitter(destination)) {
+      // we know this is a control op involving the receiver set.
+      // if this is the owner, admins and emitters, then send
       return true;
     } else {
+      // so this is a control op involving the receiver set, and we
+      // are targeting a non-owner, non-admin, non-emitter id.
+
+      // send only if the receiver set is public or this is the id
+      // that is being added.
+
       if (control.getReceiverSetIsPublic()) {
         return true;
       } else {
@@ -696,33 +873,40 @@ class ReplicationService {
           operation.getAction() === ControlOp.RECEIVER_SET &&
           OperationalSet.getActionFromOp(operation.getAuxOp()) === 'add') {
 
-        this.store.loadAllByTag(MetaOp.tagFor(operation.getReplicable())).then(
-          prevOperations => {
+        this.store.loadAllByTag(ReplicationService.tagForChildOf(operation.getReplicable()))
+                  .then(childReplicables => {
+                    let allReplicables = childReplicables;
+                    allReplicables.push(operation.getReplicable());
+                    allReplicables.forEach(replicable => {
+                      this.store.loadAllByTag(MetaOp.tagFor(replicable)).then(
+                        prevOperations => {
 
-            let newTargetDestination = operation.getTarget().getRoot();
-            for (let prevOp of prevOperations) {
-              // FIXME: since callbacks are fired _after_ saving an object,
-              // the subscription should have added the new receiver by the
-              // time the operation that does it triggers the replication hook
+                          let newTargetDestination = operation.getTarget().getRoot();
+                          for (let prevOp of prevOperations) {
+                            // FIXME: since callbacks are fired _after_ saving an object,
+                            // the subscription should have added the new receiver by the
+                            // time the operation that does it triggers the replication hook
 
-              // but that is not happening, so we always do it here
+                            // but that is not happening, so we always do it here
 
-              //if (!prevOp.equals(operation)) {
-                try {
-                  if (ReplicationService._shouldSend(this.source, newTargetDestination, prevOp)) {
-                    this.storePendingAndEnque(prevOp, newTargetDestination);
-                  }
+                            //if (!prevOp.equals(operation)) {
+                              try {
+                                if (ReplicationService._shouldSend(this.source, newTargetDestination, prevOp)) {
+                                  this.storePendingAndEnque(prevOp, newTargetDestination);
+                                }
 
-                } catch(e) {
-                  this.logger.error('could not ship ' + prevOp.fingerprint());
-                  console.log(e);
-                }
-              //} else {
-              //  console.log('enqueuing PREV operation ' + prevOp.fingerprint() + ' destination:' + operation.getTarget().getRoot().fingerprint());
-              //}
-            }
-          }
-        )
+                              } catch(e) {
+                                this.logger.error('could not ship ' + prevOp.fingerprint());
+                                console.log(e);
+                              }
+                            //} else {
+                            //  console.log('enqueuing PREV operation ' + prevOp.fingerprint() + ' destination:' + operation.getTarget().getRoot().fingerprint());
+                            //}
+                          }
+                        }
+                      )
+                    });
+                  });
 
       }
     }
@@ -882,7 +1066,7 @@ class ObjectEnvelopeReply {
   }
 }
 
-const _RETRANSMISSION_INTERVAL = 10;
+const _RETRANSMISSION_INTERVAL = 120;
 const _TICK_INTERVAL           =  1;
 
 class DestinationShippingQueue {
@@ -890,7 +1074,7 @@ class DestinationShippingQueue {
   constructor(destination, replicables, sendObject, sendAnswer) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.DEBUG());
+    this.logger.setLevel(Logger.INFO());
 
     this.destination = destination;
     this.replicables = replicables;

@@ -2,6 +2,8 @@ import React from 'react';
 
 import withWidth from '@material-ui/core/withWidth';
 
+import { Redirect } from 'react-router-dom';
+
 import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import AppBar from '@material-ui/core/AppBar';
@@ -18,6 +20,10 @@ import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import withMobileDialog from '@material-ui/core/withMobileDialog';
 
+import CircularProgress from '@material-ui/core/CircularProgress';
+
+import { withRouter } from 'react-router';
+
 import logo32 from '../components/images/logo32.png';
 
 class CreateAccountView extends React.Component {
@@ -25,9 +31,31 @@ class CreateAccountView extends React.Component {
   constructor(props) {
     super(props);
 
-    this.state = { showDialog: false, name: '', dialogRequested: false, bypassDialog: false};
+    const currentLocation = this.props.history.location.pathname;
+    var nextLocation = '/';
+
+    if (currentLocation !== undefined &&
+        currentLocation !== '/create-account' &&
+        currentLocation !== '/create-account/') {
+
+      this.props.history.replace('/create-account');
+      nextLocation = currentLocation;
+    }
+
+    this.state = { showDialog      : false,
+                   name            : '',
+                   dialogRequested : false,
+                   creatingAccount : false,
+                   accountReady    : false,
+                   nextLocation    : nextLocation,
+                   appControl      : this.props.appControl
+                 };
 
 
+  }
+
+  static getDerivedStateFromProps(props, state) {
+    return {'appControl': props.appControl};
   }
 
   showDialog() {
@@ -65,6 +93,7 @@ class CreateAccountView extends React.Component {
     return (
 
       <React.Fragment>
+
         <AppBar position={appBarPosition}>
           <Typography variant="h4" color="inherit" style={{marginTop: '8px', marginBottom: '8px'}}><img style={{verticalAlign:'middle'}}src={logo32}/> Hyper Hyper Space</Typography>
         </AppBar>
@@ -88,7 +117,7 @@ class CreateAccountView extends React.Component {
           <Grid item>
             <form noValidate autoComplete="off" style={{marginTop:'20px'}}>
               <Grid container>
-                <Grid xs={12} item><TextField autoFocus={true} onChange={(e) => {this.setState({name:e.target.value});}} onKeyPress={(e) => {if (e.key === 'Enter') {e.preventDefault();}}}{...nameProps} style={{marginLeft:'8px', marginRight:'8px', marginTop: '4px', marginBottom: '12px'}} label="Your name" margin="normal" /></Grid>
+                <Grid xs={12} item><TextField autoFocus={true} onChange={(e) => {this.setState({name:e.target.value});}} onKeyPress={(e) => {if (e.key === 'Enter') {e.preventDefault();}}} {...nameProps} style={{marginLeft:'8px', marginRight:'8px', marginTop: '4px', marginBottom: '12px'}} label="Your name" margin="normal" /></Grid>
                 {/*<Grid xs={12} item><TextField autoFocus={true} onChange={(e) => {this.setState({name:e.target.value});}} onKeyPress={(e) => {if (e.key === 'Enter') {e.preventDefault();}}}{...nameProps} style={{marginLeft:'8px', marginRight:'8px', marginTop: '4px', marginBottom: '12px'}} label="Device name" margin="normal" value="My computer"/></Grid>*/}
                 <Grid xs={12} item><Button onClick={boundShowDialog}style={{marginLeft:'8px', marginRight:'8px', marginTop: '16px', marginBottom: '4px'}} variant="contained" color="primary">OK, let's go!</Button></Grid>
               </Grid>
@@ -99,7 +128,7 @@ class CreateAccountView extends React.Component {
         </Paper>
 
         <Dialog
-          fullScreen={fullScreen}
+
           open={this.state.showDialog}
           onClose={() => { }}
           aria-labelledby="confirm-name"
@@ -107,27 +136,57 @@ class CreateAccountView extends React.Component {
           <DialogTitle id="confirm-name-dialog">{"About your name"}</DialogTitle>
           <DialogContent>
             <DialogContentText>
-              <p>{"You can use "} <b> {"any name you want "} </b> {" in the Hyper Hyper Space."}  </p> <p> {"However, for security reasons, the name you choose "} <b> {"can't be changed later"} </b> {" without starting over."}  </p> <p> {" Do you want to continue using the name  "} <b>{this.state.name}</b>{"?"}</p>
+              {"You can use "} <b> {"any name you want "} </b> {" in the Hyper Hyper Space."}  <br /> {"However, for security reasons, the name you choose "} <b> {"can't be changed later"} </b> {" without starting over."}  <br /> {" Do you want to continue using the name  "} <b>{this.state.name}</b>{"?"}
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => {this.setState({showDialog: false, dialogRequested: false, bypassDialog: true});}} color="default">
+            <Button onClick={() => {
+                this.setState({showDialog: false, dialogRequested: false});
+              }} color="default">
               No
             </Button>
-            <Button onClick={() => { }} color="primary" autoFocus>
+            <Button onClick={() => {
+                this.setState({showDialog: false, dialogRequested: false, creatingAccount: true});
+                setTimeout(() => {
+                  let account  = this.state.appControl
+                                     .getPeerManager()
+                                     .createAccount({'name' : this.state.name});
+                  account.addLinkupServer('wss://mypeer.net');
+                  this.state.appControl
+                      .getPeerManager()
+                      .createLocalAccountInstance(account,
+                                                  {'name': 'My first device'})
+                      .then(
+                            (instance) => {
+                              this.state.appControl.setActivePeer(instance.fingerprint());
+                              this.props.history.push(this.state.nextLocation);
+                            });
+                }, 50)
+              }} color="primary" autoFocus>
               Yes
             </Button>
           </DialogActions>
         </Dialog>
-      </React.Fragment>
+        <Dialog
 
+          open={this.state.creatingAccount}
+          onClose={() => { }}
+          aria-labelledby="creating-account"
+        >
+          <DialogTitle id="creating-account-dialog">{"Creating your account"}</DialogTitle>
+          <DialogContent>
+
+            <CircularProgress />
+            <DialogContentText>
+              {"Please wait while your web browser initializes your account."}
+            </DialogContentText>
+          </DialogContent>
+        </Dialog>
+
+    </React.Fragment>
     );
-  }
-
-  doAction() {
-    
   }
 
 }
 
-export default withWidth()(CreateAccountView);
+export default withRouter(withWidth()(CreateAccountView));

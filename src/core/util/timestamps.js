@@ -11,6 +11,10 @@ class Timestamps {
     return Timestamps.currentTimestamp() + random;
   }
 
+  static epochTimestamp() {
+    return 'T' + Strings.pad('', 11) + Strings.pad('', 10);
+  }
+
   static parseUniqueTimestamp(unique) {
     return parseInt(unique.substring(1,12), 16);
   }

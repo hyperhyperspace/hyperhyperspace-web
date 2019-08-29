@@ -50,8 +50,8 @@ class ChatMessage extends React.Component {
 
     const { width }         = this.props;
     const { userIsSender }  = this.props;
-    const { messageContent } = this.props;
-    const { messageDate}    = this.props;
+    const { content }= this.props;
+    const { time }    = this.props;
     const { isSent }        = this.props;
     const { isReceived }    = this.props;
     const { isRead }        = this.props;
@@ -89,11 +89,11 @@ class ChatMessage extends React.Component {
                   <Paper className={userIsSender? classes.sentMessageBubble : classes.receivedMessageBubble} elevation={1} align="left">
 
                     {userIsSender?
-                        (<Typography style={{verticalAlign: 'baseline'}}variant="body1" className={classes.sentMessageText}>{messageContent} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </Typography>)
+                        (<Typography style={{verticalAlign: 'baseline'}}variant="body1" className={classes.sentMessageText}>{content} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </Typography>)
                         :
-                        (<Typography style={{verticalAlign: 'baseline'}}variant="body1" className={classes.receivedMessageText}>{messageContent} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </Typography>)
+                        (<Typography style={{verticalAlign: 'baseline'}}variant="body1" className={classes.receivedMessageText}>{content} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </Typography>)
                     }
-                        <Typography style={{float: 'right', paddingBottom:'4px', marginTop: '-16px', marginRight: '8px', marginBottom: '0px', marginLeft:'4px'}} variant="caption">{messageDate} {messageStatus} </Typography>
+                        <Typography style={{float: 'right', paddingBottom:'4px', marginTop: '-16px', marginRight: '8px', marginBottom: '0px', marginLeft:'4px'}} variant="caption">{time} {messageStatus} </Typography>
 
                   </Paper>
                 </Grid>

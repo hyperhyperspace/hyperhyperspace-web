@@ -16,9 +16,16 @@ import { Types } from './core/data/types.js';
 import { PeerManager, Peer } from './core/peer/peering.js';
 
 
-import { testReplication } from './scratchpad.js';
 
-testReplication();
+//import { testReplication } from './scratchpad.js';
+//testReplication();
+
+//import { testMessaging } from './scratchpad.js';
+//testMessaging();
+
+//import { testContacts } from './scratchpad.js';
+//testContacts();
+
 
 const peerManager = new PeerManager();
 

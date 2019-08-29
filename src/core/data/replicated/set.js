@@ -14,13 +14,13 @@ class ReplicatedSetBase {
   constructor(identity, params) {
     this.type = Types.REPL_SET();
 
-    this.initializeReplicable();
+    this.initializeReplicable(params);
 
     this.operationalSet = new OperationalSet();
 
 
     if (identity !== undefined) {
-      this.create(identity, params);
+      this.create(identity);
     }
   }
 
@@ -67,12 +67,12 @@ class ReplicatedObjectSetBase {
   constructor(identity, params) {
     this.type = Types.REPL_OBJECT_SET();
 
-    this.initializeReplicable();
+    this.initializeReplicable(params);
     this.operationalSet = new OperationalSet();
     this.objects = {};
 
     if (identity !== undefined) {
-      this.create(identity, params);
+      this.create(identity);
     }
   }
 
@@ -91,13 +91,14 @@ class ReplicatedObjectSetBase {
 
   }
 
-  removeFingarprint(fingerprint, author) {
+  removeFingerprint(fingerprint, author) {
     this.addOperation(this.operationalSet.createRemoveOp(fingerprint), [], author);
   }
 
   apply(op) {
     let fingerprint = OperationalSet.getElementFromOp(op.getPayload());
     let storable    = op.getDependency(fingerprint);
+    this.operationalSet.apply(op.getPayload());
     if (storable !== undefined) { this.objects[fingerprint] = storable };
   }
 
@@ -113,7 +114,7 @@ class ReplicatedObjectSetBase {
     let objectSet = new Set();
     this.operationalSet.snapshot().forEach(
       (fingerprint) => {
-        objectSet.add(this.objects.get(fingerprint));
+        objectSet.add(this.objects[fingerprint]);
       }
     );
 

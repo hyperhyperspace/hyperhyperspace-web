@@ -9,8 +9,6 @@ import { IdentityService } from './identity.js';
 import { Identity, IdentityKey } from './identity.js';
 import { Account, AccountInstance } from './accounts.js';
 
-import { ConsoleService } from '../../services/development/console.js';
-
 import Logger from '../util/logging';
 
 class PeerManager {
@@ -71,8 +69,8 @@ class PeerManager {
 
 }
 
-const _LINKUP_SERVER = 'ws://localhost:3002';
-//const _LINKUP_SERVER = 'wss://mypeer.net';
+//const _LINKUP_SERVER = 'ws://localhost:3002';
+const _LINKUP_SERVER = 'wss://mypeer.net';
 
 class Peer {
 
@@ -106,7 +104,7 @@ class Peer {
       this.waitForInit = ownInit
       .then(() => {
         let servicesToInit = Array.from(this.services.values());
-        Promise.all(servicesToInit.map(s => s.start()));
+        return Promise.all(servicesToInit.map(s => s.start()));
       }).then(() => {
         this.logger.info('All services started for instance ' + this.fingerprint);
         return this;
@@ -118,7 +116,7 @@ class Peer {
   }
 
   async waitUntilStartup() {
-    return this.initialization;
+    return this.waitForInit;
   }
 
   async _init() {
@@ -132,17 +130,7 @@ class Peer {
                                               this.routeIncomingMessageBound
                                             );
 
-
-    this.registerService(this.deliveryService);
-
     this.replicationService = new ReplicationService(this);
-
-    this.registerService(this.replicationService);
-
-    this.consoleService = new ConsoleService(this);
-
-    this.registerService(this.consoleService);
-
   }
 
   registerService(service) {
@@ -186,11 +174,11 @@ class Peer {
       throw new Error('Sorry, routng is supported only from the account identity for the time being.');
     }
 
-    await this.initialization;
+    await this.waitForInit;
 
     let msg = new PeerMessage(sourceFP, destinationFP, destinationService, contentLiteral);
 
-    this.deliveryService.send(destinationFP, destinationLinkup, msg.toWireFormat(), 30);
+    return this.deliveryService.send(destinationFP, destinationLinkup, msg.toWireFormat(), 30);
   }
 
   getAccountInstanceFingerprint() {

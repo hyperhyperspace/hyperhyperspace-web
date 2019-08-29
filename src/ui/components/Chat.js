@@ -123,7 +123,7 @@ class Chat extends React.Component {
             </Avatar>
 
             <Typography className={classes.userName} variant="h6" color="inherit">
-              {this.props.chats !== null && this.props.chats.recipientName}
+              {this.props.chats !== null && this.props.chats.counterpartName}
             </Typography>
           </Toolbar>
         </AppBar>
@@ -145,7 +145,7 @@ class Chat extends React.Component {
           </Grid>
         </Grid>
 
-        <MessageInput />
+        <MessageInput counterpartId={this.props.chats===null? null : this.props.chats.counterpartId} controller={this.props.controller}/>
 
       </React.Fragment>
 

@@ -8,10 +8,10 @@ import { Types } from '../data/types.js';
 import Logger from '../util/logging';
 import Strings from '../util/strings.js';
 
-const _CONNECTION_TIMEOUT   = 15;
-const _VERIFICATION_TIMEOUT = 15;
-const _DEFAULT_SEND_TIMEOUT = 60;
-const _MAX_SEND_TIMEOUT     = 120;
+const _CONNECTION_TIMEOUT   = 10;
+const _VERIFICATION_TIMEOUT = 10;
+const _DEFAULT_SEND_TIMEOUT = 10;
+const _MAX_SEND_TIMEOUT     = 30;
 
 class DeliveryService {
 
@@ -20,7 +20,7 @@ class DeliveryService {
   constructor(peer, identity, linkupServer, verifiedMessageCallback) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.TRACE());
+    this.logger.setLevel(Logger.DEBUG());
 
     this.verifiedMessageCallback      = verifiedMessageCallback;
     this.handleConnectionFailureBound = this.handleConnectionFailure.bind(this);
@@ -57,14 +57,14 @@ class DeliveryService {
     // identity => set(uuid)
     this.pendingMessagesByIdentity = {};
 
-
-
     // connection status
     this.status = new Map();
 
     this.networkNode.setConnectionCallback(conn => this.receiveConnection(conn));
 
     this.waitForInit = null;
+
+    this.peer.registerService(this);
 
   }
 
@@ -321,7 +321,7 @@ class VerifiedConnection {
   constructor(identity, connection, messageCallback, readyCallback, rejectCallback, expectedRemoteFP) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.TRACE());
+    this.logger.setLevel(Logger.INFO());
 
     this.connection       = connection;
     this.expectedRemoteFP = expectedRemoteFP === undefined? null : expectedRemoteFP;

@@ -78,19 +78,20 @@ class AccountBase {
   }
 
   unsubscribe(store) {
-    this.instances.unsusbscribe(store);
+    this.instances.unsubscribe(store);
     this.linkup.subscribe(store);
     this.datasets.subscribe(store);
   }
 
-  addLinkupServer(url, priority) {
-    this.linkup.add({'url': url, 'priority': priority}, this.identity);
+  addLinkupServer(url) {
+    this.linkup.add(url, this.identity);
   }
 
   getAllLinkupServers() {
     return this.linkup.snapshot();
   }
 
+  /*
   getLinkupServerAlternatives() {
     let servers = Array.from(this.linkup.snapshot());
     return servers.sort((e1, e2) => e2.priority-e1.priority);
@@ -113,7 +114,7 @@ class AccountBase {
       return null;
     }
   }
-
+  */
   getInstances() {
     return this.instances;
   }

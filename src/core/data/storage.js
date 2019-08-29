@@ -5,6 +5,8 @@ import { Crypto } from '../peer/crypto.js';
 import { Identity, IdentityKey } from '../peer/identity.js';
 import { Types } from './types.js';
 
+import { ReplicationService } from './replication.js';
+
 import Timestamps from '../util/timestamps.js';
 
 import Logger from '../util/logging';
@@ -29,7 +31,7 @@ class Store {
   constructor(accountInstanceFP) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.INFO());
+    this.logger.setLevel(Logger.DEBUG());
 
     this.accountInstanceFP = accountInstanceFP;
     this.db = openDB('account-instance-' + accountInstanceFP, 1, {
@@ -37,11 +39,11 @@ class Store {
 
           var atomStore = newdb.createObjectStore(_OBJECTS, {keyPath: 'fingerprint'});
 
-          atomStore.createIndex(_TYPE_IDX, "literal.type");
+          atomStore.createIndex(_TYPE_IDX, "serialization.type");
           atomStore.createIndex(_TYPE_TIMESTAMP_IDX, "type_timestamp");
           atomStore.createIndex(_TYPE_SAVED_IDX, "type_saved");
 
-          atomStore.createIndex(_TAGS_IDX, "literal.tags", {multiEntry: true});
+          atomStore.createIndex(_TAGS_IDX, "serialization.tags", {multiEntry: true});
           atomStore.createIndex(_TAGS_TIMESTAMP_IDX, "tags_timestamp", {multiEntry: true});
           atomStore.createIndex(_TAGS_SAVED_IDX, "tags_saved", {multiEntry: true});
 
@@ -126,7 +128,7 @@ class Store {
     if (external === undefined) {
       external = {};
     }
-    
+
     this.logger.debug('(' + this.accountInstanceFP + ') about to load ' + fingerprint + ' externals: ' + Object.keys(external).toString());
 
     return this.loadWithDependencies(fingerprint, new Set(), this.loadStorageLiteral(fingerprint), {}, {}, external)
@@ -246,11 +248,21 @@ class Store {
       });
       */
 
+      if (literal === undefined) {
+        result = result.then(object => this.checkExternalObject(fingerprint, object, parents, dependencyLoads, keyLoads, external));
+      }
+
+      //result = result.then(object => this.autoPullDependencies(object));
+
+      return result;
+
+
+      /*
       if (literal !== undefined) {
         return result;
       } else {
         return result.then(object => this.checkExternalObject(fingerprint, object, parents, dependencyLoads, keyLoads, external));
-      }
+      }*/
 
      });
   }
@@ -291,6 +303,20 @@ class Store {
     });
 
     return Promise.all(sigChecks).then(() => object);
+  }
+
+  autoPullDependencies(object) {
+    let pulls = [];
+    if (object.autoPullDependencies()) {
+      object.getDependencies().forEach(
+        dependency => {
+          if (ReplicationService.isReplicable(dependency)) {
+            pulls.push(dependency.pull(this));
+          }
+        }
+      );
+    }
+    return Promise.all(pulls).then(() => object);
   }
 
   loadAllByType(type, order, useRecvTime) {
@@ -444,7 +470,6 @@ class Store {
   }
 
   static fromStorageFormat(literal, dependencies, foundKeys) {
-
     let object = Types.deserializeWithType(literal['serialization'], dependencies, foundKeys);
     object.setSavedTimestamp(literal['saved']);
 
@@ -499,7 +524,12 @@ function storable(Class) {
     // initialized object, that super can explicitly call in its constructor in case it
     // needs the storable functionality to construct itself.
 
-    initializeStorable() {
+    initializeStorable(params) {
+
+      if (params === undefined) {
+        params = {}
+      }
+
       if (this.timestamp === undefined) {
         this.tags             = new Set();
         this.dependencies     = {};
@@ -510,7 +540,15 @@ function storable(Class) {
                                            // will still have them in that case (for fingerprinting,
                                            // eventual retransmission to a host that does have
                                            // them, etc.)
-        this.timestamp        = Timestamps.uniqueTimestamp();
+        var noTimestamp = false;
+        if ('noTimestamp' in params) {
+          noTimestamp = params['noTimestamp'];
+        }
+        if (noTimestamp) {
+          this.timestamp = Timestamps.epochTimestamp();
+        } else {
+          this.timestamp = Timestamps.uniqueTimestamp();
+        }
         this.savedTimestamp   = null;
       }
     }
@@ -588,6 +626,15 @@ function storable(Class) {
     removeSignature(identityfp) {
       delete this.signatures[identityfp]
     }
+
+    autoPullDependencies() {
+      if (super.autoPullDependencies !== undefined) {
+        return super.autoPullDependencies();
+      } else {
+        return true;
+      }
+    }
+
 
     signWith(identityKey) {
       // the following is necessary because we want to sign the object
@@ -797,5 +844,36 @@ class StorageManager {
   }
 }
 
+class StorableValueBase {
+  constructor(value) {
 
-export {StorageManager, storable};
+    this.type = Types.STORABLE_VALUE();
+
+    this.initializeStorable({noTimestamp: true});
+
+    if (value !== undefined) {
+      this.value = value;
+    } else {
+      this.value = null;
+    }
+  }
+
+  getValue() {
+    return this.value;
+  }
+
+  serialize() {
+    return {
+      'value' : this.value,
+      'type'  : this.type
+    };
+  }
+
+  deserialize(serial) {
+    this.value = serial['value'];
+  }
+}
+
+const StorableValue = storable(StorableValueBase);
+
+export {StorageManager, StorableValue, storable};
