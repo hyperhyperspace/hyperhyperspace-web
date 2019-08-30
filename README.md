@@ -5,9 +5,11 @@ The aim of this project is to create open source peer-to-peer user-facing applic
 
 The only non-browser dependency is a tiny signalling server that WebRTC needs to establish browser to browser connections.
 
-As a proof of concept, we're finishing a chat app, created as a single page react application.
+As a proof of concept, we've created a chat app that works as a single page react application in your web browser.
 
-It should be ready to use in the following weeks.
+Check it out: https://hyperhyper.space
+
+It's still in beta.
 
 What we have:
 
@@ -16,9 +18,7 @@ What we have:
   * Content-addressable storage using IndexedDB
   * Cryptographic identities / validation using JSEncrypt, Hashes and in-browser crypto
   * CRDT-based distributed database
- 
+
 * Chat single-page application UI, created using React and Material-UI
 
-Working on:
-
-Integrating the UI with the P2P in-browser backend.
+For more information please visit the project website at https://www.hyperhyperspace.org
