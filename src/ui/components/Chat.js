@@ -128,7 +128,7 @@ class Chat extends React.Component {
           </Toolbar>
         </AppBar>
 
-        <Grid container style={{paddingTop:'8px', paddingBottom:'8px'}}>
+        <Grid container style={{paddingTop:'8px', paddingBottom:'5rem'}}>
           <Grid item xs={12}>
 
             {this.props.chats !== null &&
@@ -145,7 +145,7 @@ class Chat extends React.Component {
           </Grid>
         </Grid>
 
-        <MessageInput counterpartId={this.props.chats===null? null : this.props.chats.counterpartId} controller={this.props.controller}/>
+        <MessageInput isSmallDevice={isSmallDevice} counterpartId={this.props.chats===null? null : this.props.chats.counterpartId} controller={this.props.controller}/>
 
       </React.Fragment>
 

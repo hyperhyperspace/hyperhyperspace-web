@@ -155,7 +155,9 @@ class MessageInput extends React.Component {
 
   render() {
 
-    const { classes } = this.props;
+    const { classes, isSmallDevice } = this.props;
+
+    const inputWidth = isSmallDevice? '100%' : '66%';
 
     const boundHandleEmojiPickerChange = this.handleEmojiPickerChange.bind(this);
     const boundHandleEmojiPickerClickAway = this.handleEmojiPickerClickAway.bind(this);
@@ -165,7 +167,7 @@ class MessageInput extends React.Component {
 
     return (
       <ClickAwayListener onClickAway={boundHandleEmojiPickerClickAway} >
-        <Grid style={{position:'absolute', top:'auto', bottom:'0'}} container>
+        <Grid style={{position:'fixed', top:'auto', bottom:'0', width:inputWidth }} container>
 
           <Grid item xs={12}>
             {/*<Grid container direction="row" justify="flex-start">

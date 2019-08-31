@@ -3,6 +3,8 @@ import ContactsService from '../../services/people/contacts';
 
 import AllChatsController from './AllChatsController.js';
 
+import Timestamps from '../../core/util/timestamps.js';
+
 class ChatController {
 
   constructor(control) {
@@ -75,13 +77,33 @@ class ChatController {
 
     let conversation = this.conversations[counterpart.fingerprint()];
 
+    var time = '-';
+    if (chat.timestamp !== null) {
+
+      let date = new Date(Timestamps.parseUniqueTimestamp(chat.timestamp));
+      date.setHours(0,0,0,0);
+      let nowDate = new Date();
+      nowDate.setHours(0,0,0,0);
+
+      let timestamp = new Date(Timestamps.parseUniqueTimestamp(chat.timestamp));
+
+      // if the message is from today, just dispay the time
+      if (date.getTime() === nowDate.getTime()) {
+        time = timestamp.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});//timestamp.getHours() + ':' + timestamp.getMinutes();
+      // otherwise, display just the date
+      } else {
+        time = timestamp.toLocaleDateString();
+      }
+      //time = date.toLocaleString();
+    }
+
     conversation['messages'].push(
       {
         id: chat.fingerprint(),
         counterpartName: counterpart.getParam('name'),
         userIsSender: userIsSender,
         content: chat.content,
-        time: 'Just now',
+        time: time,
         isSent: true,
         isReceived: true,
         isRead: false
