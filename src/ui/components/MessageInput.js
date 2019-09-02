@@ -127,8 +127,11 @@ class MessageInput extends React.Component {
   handleEmoji(emoji) {
     //this.state.messageHtml = this.state.messageHtml + emoji;
     //this.newMessageDisplay.current.html = this.state.messageHtml;
+    console.log('emoji');
+    console.log(emoji);
     this.insertTextAtCursor(emoji);
     let innerHtml    = this.inputDiv.current.innerHTML;
+    console.log(innerHtml);
     this.messageText = (typeof innerHtml === 'undefined' ? '' : innerHtml);
     //this.inputDiv.current.innerHTML = emojify(this.messageText, 20);
     //this.setState((state => ({messageHtml: state.messageHtml + emoji})));
@@ -221,7 +224,7 @@ class MessageInput extends React.Component {
                       </Toolbar>
                     </div>
 
-                    <Button className={classes.micButton} onPointerCancel={this.someEvent} onContextMenu={this.someEvent} onClick={this.someEvent} onPointerDown={this.someEvent} onPointerUp={this.someEvent} variant="fab" mini> <SendIcon onClick={()=>{if (this.messageText.trim().length > 0) { this.props.controller.sendChat(this.props.counterpartId, this.messageText); this.messageText = ''; this.inputDiv.current.innerHTML='';}}}/></Button>
+                    <Button className={classes.micButton} onPointerCancel={this.someEvent} onContextMenu={this.someEvent} onClick={this.someEvent} onPointerDown={this.someEvent} onPointerUp={this.someEvent} variant="fab" mini> <SendIcon onClick={()=>{if (this.messageText.trim().length > 0) { this.props.controller.sendChat(this.props.counterpartId, this.messageText.replace(/[<]img[^>]*class[=]["]emoji["][^>]*alt[=]["]([^"]*)["][^>]*[>]/g, '$1')); this.messageText = ''; this.inputDiv.current.innerHTML='';}}}/></Button>
 
               </Toolbar>
 

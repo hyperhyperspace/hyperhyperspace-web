@@ -22,7 +22,7 @@ import FlagIcon from '@material-ui/icons/Flag';
 
 import { ordered, lib } from 'emojilib';
 
-import Emoji from '../components/Emoji.js';
+import Emoji from './Emoji.js';
 
 let categories = new Map();
 

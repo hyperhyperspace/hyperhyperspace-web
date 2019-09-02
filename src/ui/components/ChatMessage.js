@@ -11,6 +11,10 @@ import Typography from '@material-ui/core/Typography';
 import DoneAllIcon from '@material-ui/icons/DoneAll';
 import DoneIcon from '@material-ui/icons/Done';
 
+import Emoji from './Emoji.js';
+
+import twemoji from 'twemoji';
+
 const styles = theme => ({
     sentMessageBubble: {
       borderTopRightRadius: '0px',
@@ -55,14 +59,57 @@ class ChatMessage extends React.Component {
     const { isSent }        = this.props;
     const { isReceived }    = this.props;
     const { isRead }        = this.props;
+    const { key }           = this.props;
 
     const isSmallDevice = width === 'xs' || width === 'sm';
 
     const sentMessagePadding = '&nbsp'.repeat(20);
     const receivedMessagePadding = '&nbsp'.repeat(18);
 
-    var messageStatus;
+    var messageContent;
 
+    let messageElements = [];
+    var prevText = '';
+
+    for (const ch of content) {
+      const imgstr = twemoji.parse(ch);
+      if (imgstr.includes('<img')) {
+        if (prevText != '') {
+          messageElements.push(<span style={{verticalAlign: 'middle', minHeight: '20px'}} key={key + '_part_' + messageElements.length}>{prevText}</span>);
+          prevText = '';
+        }
+
+        let re = /src[ ]*[=][ ]*["]([^"]*)["]/g;
+
+        var match = null;
+
+        var src = '';
+
+        while ((match = re.exec(imgstr)) !== null) {
+          src = match[1];
+        }
+
+        messageElements.push(<img style={{verticalAlign: 'middle'}} class='emoji' height='20px' width='20px' key={key + '_part_' + messageElements.length} src={src} />);
+      } else {
+        prevText = prevText + ch;
+      }
+    }
+
+    if (prevText !== '') {
+      messageElements.push(<span style={{verticalAlign: 'middle', minHeight: '20px'}} key={key + '_part_' + messageElements.length}>{prevText}</span>)
+    }
+
+    if (userIsSender) {
+      messageElements.push(<span key={key + '_part_' + messageElements.length}>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>);
+      messageContent = (<Typography style={{verticalAlign: 'baseline'}}variant="body1" component='div' className={classes.sentMessageText}> { messageElements.map(x => x) }  </Typography>);
+    } else {
+      messageElements.push(<span key={key + '_part_' + messageElements.length}>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>)
+      messageContent = (<Typography style={{verticalAlign: 'baseline'}}variant="body1" component='div' className={classes.receivedMessageText}>{messageElements.map(x => x) }  </Typography>);
+    }
+
+    //twemoji.parse(messageContent);
+
+    var messageStatus;
 
     if (userIsSender) {
       if (isRead) {
@@ -88,11 +135,8 @@ class ChatMessage extends React.Component {
                 <Grid item>
                   <Paper className={userIsSender? classes.sentMessageBubble : classes.receivedMessageBubble} elevation={1} align="left">
 
-                    {userIsSender?
-                        (<Typography style={{verticalAlign: 'baseline'}}variant="body1" className={classes.sentMessageText}>{content} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </Typography>)
-                        :
-                        (<Typography style={{verticalAlign: 'baseline'}}variant="body1" className={classes.receivedMessageText}>{content} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </Typography>)
-                    }
+                        {messageContent}
+
                         <Typography style={{float: 'right', paddingBottom:'4px', marginTop: '-16px', marginRight: '8px', marginBottom: '0px', marginLeft:'4px'}} variant="caption">{time} {messageStatus} </Typography>
 
                   </Paper>
