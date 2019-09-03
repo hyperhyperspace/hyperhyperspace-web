@@ -134,10 +134,10 @@ class EmojiPicker extends React.Component {
         {/*<SwipeableViews index={this.state.selectedIdx} onChangeIndex={boundHandleTabChange}>*/}
           {/*{[0, 1, 2, 3, 4, 5, 6, 7].map(
             idx => (*/}
-                <Grid container style={{height: (isSmallDevice? '100px' : '150px'), overflow:'scroll'}} onScroll={boundHandleScroll} spacing={8}>
+                <Grid container style={{height: (isSmallDevice? '100px' : '150px'), overflow:'scroll'}} onScroll={boundHandleScroll} spacing={8} >
                   {categories.get(category_keys[this.state.selectedIdx]).slice(0, this.state.shownEmojisPerTab[this.state.selectedIdx]).map((key, i) =>
                     <Grid key={key + '-grid'} item>
-                      <Emoji key={key} onClick={((ev) => {this.props.onEmoji((lib[key].char));ev.preventDefault(); ev.stopPropagation();})} text={lib[key].char} size='28px' />
+                      <Emoji key={key} onClick={((ev) => {this.props.onEmoji((lib[key].char));ev.preventDefault(); ev.stopPropagation();})} text={lib[key].char} size='28px' onChar={this.props.onChar}/>
                     </Grid>
                   )}
                 </Grid>

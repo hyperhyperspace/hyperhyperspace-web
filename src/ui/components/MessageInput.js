@@ -105,7 +105,7 @@ let emojify = (string, size) => {
 class MessageInput extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { 'showEmojiPicker': false, messageHtml: 'hol<b>a</b>'};
+    this.state = { 'showEmojiPicker': false };
     this.messageText = '';
     this.inputDiv   = React.createRef();
     this.startContainer = null;
@@ -122,6 +122,10 @@ class MessageInput extends React.Component {
     if (this.state.showEmojiPicker) {
         this.setState(state => ({showEmojiPicker: false}));
     }
+  }
+
+  handleChar(char) {
+    alert(char);
   }
 
   handleEmoji(emoji) {
@@ -165,6 +169,7 @@ class MessageInput extends React.Component {
     const boundHandleEmojiPickerChange = this.handleEmojiPickerChange.bind(this);
     const boundHandleEmojiPickerClickAway = this.handleEmojiPickerClickAway.bind(this);
     const boundHandleEmoji = this.handleEmoji.bind(this);
+    const boundHandleChar = this.handleChar.bind(this);
     const boundHandleNewMessageChange = this.handleNewMessageChange.bind(this);
     const boundHandleNewMessageBlur = this.handleNewMessageBlur.bind(this);
 
@@ -175,7 +180,7 @@ class MessageInput extends React.Component {
           <Grid item xs={12}>
             {/*<Grid container direction="row" justify="flex-start">
               <Grid item>*/}
-                { this.state.showEmojiPicker && <EmojiPicker onEmoji={boundHandleEmoji}/> }
+                { this.state.showEmojiPicker && <EmojiPicker onEmoji={boundHandleEmoji} onChar={boundHandleChar}/> }
                   {/*<Slide direction="up" in={this.state.showEmojiPicker} mountOnEnter unmountOnExit>*/}
 
                   {/*</Slide>*/}
@@ -224,7 +229,14 @@ class MessageInput extends React.Component {
                       </Toolbar>
                     </div>
 
-                    <Button className={classes.micButton} onPointerCancel={this.someEvent} onContextMenu={this.someEvent} onClick={this.someEvent} onPointerDown={this.someEvent} onPointerUp={this.someEvent} variant="fab" mini> <SendIcon onClick={()=>{if (this.messageText.trim().length > 0) { this.props.controller.sendChat(this.props.counterpartId, this.messageText.replace(/[<]img[^>]*class[=]["]emoji["][^>]*alt[=]["]([^"]*)["][^>]*[>]/g, '$1')); this.messageText = ''; this.inputDiv.current.innerHTML='';}}}/></Button>
+                    <Button className={classes.micButton}
+                            onPointerCancel={this.someEvent}
+                            onContextMenu={this.someEvent}
+                            onClick={this.sendMessage}
+                            onPointerDown={this.someEvent}
+                            onPointerUp={this.someEvent}
+                            variant="fab" mini>
+                        <SendIcon onClick={this.sendMessage}/></Button>
 
               </Toolbar>
 
@@ -235,6 +247,19 @@ class MessageInput extends React.Component {
 
     );
   }
+
+  sendMessage = () => {
+    if (this.messageText.trim().length > 0) {
+      this.props.controller.sendChat(
+        this.props.counterpartId,
+        this.messageText.replace(/[<]img[^>]*class[=]["]emoji["][^>]*alt[=]["]([^"]*)["][^>]*[>]/g, '$1')
+      );
+      this.messageText = '';
+      this.inputDiv.current.innerHTML='';
+      this.setState({showEmojiPicker: false});
+      this.props.scrollToBottom();
+    }
+  };
 
   saveCursorPosition() {
     let sel = window.getSelection();
@@ -262,10 +287,11 @@ class MessageInput extends React.Component {
     console.log(sel);
     range = sel.getRangeAt(0);
 
+    this.inputDiv.current.focus();
+
     let refocus = !range.startContainer || (range.startContainer.id != 'inputDiv' && range.startContainer.parentElement.id != 'inputDiv');
 
     if (refocus) {
-      this.inputDiv.current.focus();
       sel = window.getSelection();
       range = sel.getRangeAt(0);
       console.log('refocusing');
@@ -288,18 +314,46 @@ class MessageInput extends React.Component {
           if (sel.getRangeAt && sel.rangeCount) {
               range = sel.getRangeAt(0);
 
-              let refocus = !range.startContainer || (range.startContainer.id != 'inputDiv' && range.startContainer.parentElement.id != 'inputDiv');
+              let noSelection = !range.startContainer;
+              let foreignSelection = !noSelection && (range.startContainer.id !== 'inputDiv' && range.startContainer.parentElement.id !== 'inputDiv')
+
+              let refocus = noSelection || foreignSelection;
+              let savedCursorPosition = this.startContainer !== null;
 
               if (refocus) {
                 this.inputDiv.current.focus();
-                console.log('refocusing');
               }
 
-              if (this.startContainer) {
-                console.log('repositioning to ' + this.startOffset + ' in:');
-                console.log(this.startContainer);
+              if (range.startContainer !== null &&
+                  range.startContainer.parentElement === null) {
+                  foreignSelection = true;
+              }
+
+              if (savedCursorPosition) {
                 range.setStart(this.startContainer, this.startOffset);
                 range.setEnd(this.endContainer, this.endOffset);
+              }
+
+              if (!savedCursorPosition && foreignSelection) {
+                console.log('foreign range:');
+                console.log(range);
+                console.log('input:');
+                console.log(this.inputDiv.current);
+                console.log('start offset: ' + this.startOffset + ' of ');
+                console.log(this.startContainer);
+                console.log('end offset: ' + this.endOffset + ' of ');
+                console.log(this.endContainer);
+
+                if (this.inputDiv.current.children.length === 0 ||
+                    this.inputDiv.current.children[this.inputDiv.current.children-1].nodeType !== 3) {
+                  let space = document.createTextNode('');
+                  this.inputDiv.current.appendChild(space);
+                  range.setStart(space, 0);
+                  range.setEnd(space, 0);
+                }
+
+                //range.setStart(this.inputDiv.current.chi);
+                //range.setEnd();
               }
 
               range.deleteContents();

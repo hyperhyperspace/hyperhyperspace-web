@@ -47,34 +47,11 @@ class ChatView extends React.Component {
                    });
     });
 
-    this.fetchChat();
-    this.fetchSummary();
-
   }
 
   static getDerivedStateFromProps(props, state) {
     return {newChat: props.match.url.startsWith('/new-chat'),
             addContacts: props.match.url.startsWith('/add-contacts')};
-  }
-
-  fetchChat() {
-    /*this.controller.queryView({ view: this.controller.VIEW_CHAT(),
-                               callback: this.receiveChats,
-                               recipientId: this.props.match.params.id
-                             });*/
-  }
-
-  fetchSummary() {
-    /*this.controller.queryView({ view: this.controller.VIEW_CHATS_SUMMARY(),
-                                callback: this.receiveChatsSummary});*/
-  }
-
-  receiveChats = (params, chats) => {
-    this.setState({chats: chats, loadingChats: false});
-  }
-
-  receiveChatsSummary = (params, chatsSummary) => {
-    this.setState({chatsSummary: chatsSummary, loadingChatsSummary: false});
   }
 
   componentDidUpdate(prevProps, prevState, snapshot) {

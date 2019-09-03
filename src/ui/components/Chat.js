@@ -63,6 +63,9 @@ class Chat extends React.Component {
 
   constructor(props) {
     super(props);
+
+    this.chatDiv = React.createRef();
+    this.scrollIsAtBottom = true;
   }
 
   someEvent(e) {
@@ -71,7 +74,39 @@ class Chat extends React.Component {
     }
   }
 
+  scrolled = () => {
+    this.scrollIsAtBottom = ((this.chatDiv.current.scrollHeight - this.chatDiv.current.scrollTop) === this.chatDiv.current.clientHeight);
+  }
 
+  scrollToBottom() {
+    console.log('to bottom');
+    this.chatDiv.current.scrollTop = this.chatDiv.current.scrollHeight;
+  }
+
+  componentDidUpdate(prevProps) {
+    console.log(prevProps);
+
+
+    var newMessage = false;
+    if (prevProps.chats === null) {
+      newMessage = this.props.chats != null;
+    } else {
+      if (this.props.chats !== null) {
+        newMessage = !(prevProps.chats.messages.length === this.props.chats.messages.length);
+      }
+    }
+
+    if (newMessage && this.scrollIsAtBottom) {
+      setTimeout(() => {this.scrollToBottom();});
+    }
+
+
+    console.log('newMessage: ' + newMessage);
+  }
+
+  componentDidMount() {
+    this.scrollToBottom();
+  }
 
   render() {
 
@@ -108,7 +143,7 @@ class Chat extends React.Component {
     return (
 
       <React.Fragment>
-
+        <div ref={this.chatDiv} style={{overflow:'scroll', height: '100%', position: 'relative'}} onScroll={(ev) => {this.scrolled();}}>
         <AppBar position="static" color="default">
           <Toolbar className={classes.userToolbar}>
             <Hidden mdUp>
@@ -128,13 +163,13 @@ class Chat extends React.Component {
           </Toolbar>
         </AppBar>
 
-        <Grid container style={{paddingTop:'8px', paddingBottom:'5rem'}}>
+        <Grid container style={{paddingTop:'8px', paddingBottom:'5rem'}}  id="scroll-container">
           <Grid item xs={12}>
 
             {this.props.chats !== null &&
               this.props.chats.messages.map(
                 (msg => (
-                          <ChatMessage key={msg.id} {...msg} />
+                          <ChatMessage key={'message-' + msg.id} {...msg} />
                         )
                 )
               )
@@ -145,8 +180,8 @@ class Chat extends React.Component {
           </Grid>
         </Grid>
 
-        <MessageInput isSmallDevice={isSmallDevice} counterpartId={this.props.chats===null? null : this.props.chats.counterpartId} controller={this.props.controller}/>
-
+        <MessageInput scrollToBottom={() => {this.scrollToBottom();}} isSmallDevice={isSmallDevice} counterpartId={this.props.chats===null? null : this.props.chats.counterpartId} controller={this.props.controller}/>
+      </div>
       </React.Fragment>
 
     );

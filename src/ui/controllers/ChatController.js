@@ -40,7 +40,6 @@ class ChatController {
 
   init(callback) {
     this.chatService.getChats().then(chats => {
-      console.log(chats);
       chats.forEach(chat => this.processChat(chat));
       this.initialized = true;
       if (callback !== undefined) {
@@ -128,7 +127,15 @@ class ChatController {
 
   getChats() {
     console.log(this.conversations);
-    return this.conversations;
+
+    let result = {};
+
+    for (let key of Object.keys(this.conversations)) {
+      result[key] = Object.assign({}, this.conversations[key]);
+      result[key]['messages'] = this.conversations[key]['messages'].slice();
+    }
+
+    return result;
   }
 
   getChatSummary() {

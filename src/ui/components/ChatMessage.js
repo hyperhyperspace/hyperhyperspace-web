@@ -89,7 +89,7 @@ class ChatMessage extends React.Component {
           src = match[1];
         }
 
-        messageElements.push(<img style={{verticalAlign: 'middle'}} class='emoji' height='20px' width='20px' key={key + '_part_' + messageElements.length} src={src} />);
+        messageElements.push(<img style={{verticalAlign: 'middle'}} className='emoji' height='20px' width='20px' key={key + '_part_' + messageElements.length} src={src} />);
       } else {
         prevText = prevText + ch;
       }

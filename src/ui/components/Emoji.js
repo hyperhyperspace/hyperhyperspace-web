@@ -14,7 +14,7 @@ class Emoji extends React.Component {
 
     return (
 
-      <div onClick={onClick} dangerouslySetInnerHTML={{ __html: twemoji.parse(text, {size: 72})
+      <div onClick={onClick} onKeyPress={this.props.onChar} dangerouslySetInnerHTML={{ __html: twemoji.parse(text, {size: 72})
                       .replace('<img ', "<img height='" + size + "' width='" + size + "' ") }}>
          </div>
     );
