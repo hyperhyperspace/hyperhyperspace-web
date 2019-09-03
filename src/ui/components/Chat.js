@@ -79,13 +79,10 @@ class Chat extends React.Component {
   }
 
   scrollToBottom() {
-    console.log('to bottom');
     this.chatDiv.current.scrollTop = this.chatDiv.current.scrollHeight;
   }
 
   componentDidUpdate(prevProps) {
-    console.log(prevProps);
-
 
     var newMessage = false;
     if (prevProps.chats === null) {
@@ -99,9 +96,6 @@ class Chat extends React.Component {
     if (newMessage && this.scrollIsAtBottom) {
       setTimeout(() => {this.scrollToBottom();});
     }
-
-
-    console.log('newMessage: ' + newMessage);
   }
 
   componentDidMount() {

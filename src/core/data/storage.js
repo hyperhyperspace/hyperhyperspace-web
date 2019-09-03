@@ -31,7 +31,7 @@ class Store {
   constructor(accountInstanceFP) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.DEBUG());
+    this.logger.setLevel(Logger.INFO());
 
     this.accountInstanceFP = accountInstanceFP;
     this.db = openDB('account-instance-' + accountInstanceFP, 1, {

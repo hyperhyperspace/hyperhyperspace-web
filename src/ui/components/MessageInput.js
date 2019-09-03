@@ -124,28 +124,11 @@ class MessageInput extends React.Component {
     }
   }
 
-  handleChar(char) {
-    alert(char);
-  }
-
   handleEmoji(emoji) {
-    //this.state.messageHtml = this.state.messageHtml + emoji;
-    //this.newMessageDisplay.current.html = this.state.messageHtml;
-    console.log('emoji');
-    console.log(emoji);
     this.insertTextAtCursor(emoji);
     let innerHtml    = this.inputDiv.current.innerHTML;
-    console.log(innerHtml);
     this.messageText = (typeof innerHtml === 'undefined' ? '' : innerHtml);
-    //this.inputDiv.current.innerHTML = emojify(this.messageText, 20);
-    //this.setState((state => ({messageHtml: state.messageHtml + emoji})));
   }
-
-
-  /*handleNewMessageChange(e) {
-    console.log(e.target);
-    this.setState(state => ({messageHtml: e.target.value}));
-  }*/
 
   handleNewMessageChange(e) {
     this.messageText = this.inputDiv.current.innerHTML;
@@ -169,7 +152,6 @@ class MessageInput extends React.Component {
     const boundHandleEmojiPickerChange = this.handleEmojiPickerChange.bind(this);
     const boundHandleEmojiPickerClickAway = this.handleEmojiPickerClickAway.bind(this);
     const boundHandleEmoji = this.handleEmoji.bind(this);
-    const boundHandleChar = this.handleChar.bind(this);
     const boundHandleNewMessageChange = this.handleNewMessageChange.bind(this);
     const boundHandleNewMessageBlur = this.handleNewMessageBlur.bind(this);
 
@@ -180,7 +162,7 @@ class MessageInput extends React.Component {
           <Grid item xs={12}>
             {/*<Grid container direction="row" justify="flex-start">
               <Grid item>*/}
-                { this.state.showEmojiPicker && <EmojiPicker onEmoji={boundHandleEmoji} onChar={boundHandleChar}/> }
+                { this.state.showEmojiPicker && <EmojiPicker onEmoji={boundHandleEmoji} /> }
                   {/*<Slide direction="up" in={this.state.showEmojiPicker} mountOnEnter unmountOnExit>*/}
 
                   {/*</Slide>*/}
@@ -217,6 +199,12 @@ class MessageInput extends React.Component {
                           onInput={boundHandleNewMessageChange}
                           onClick={boundHandleNewMessageBlur}
                           onKeyDown={boundHandleNewMessageBlur}
+                          onKeyPress={(event) => { if (event.charCode==13) {
+                                                      event.preventDefault();
+                                                      event.stopPropagation();
+                                                      this.sendMessage();
+                                                   }
+                                                }}
                         />
                         {/*<TextField
                           className={classes.textField}
@@ -252,10 +240,14 @@ class MessageInput extends React.Component {
     if (this.messageText.trim().length > 0) {
       this.props.controller.sendChat(
         this.props.counterpartId,
-        this.messageText.replace(/[<]img[^>]*class[=]["]emoji["][^>]*alt[=]["]([^"]*)["][^>]*[>]/g, '$1')
+        this.messageText
+            .replace(/[<]img[^>]*class[=]["]emoji["][^>]*alt[=]["]([^"]*)["][^>]*[>]/g, '$1')
+            .replace(/[<]div[/]?[>]/g, '')
+            .trim()
       );
       this.messageText = '';
       this.inputDiv.current.innerHTML='';
+      this.inputDiv.current.focus();
       this.setState({showEmojiPicker: false});
       this.props.scrollToBottom();
     }
@@ -270,7 +262,7 @@ class MessageInput extends React.Component {
       this.startOffset    = range.startOffset;
       this.endContainer   = range.endContainer;
       this.endOffset      = range.endOffset;
-      console.log('repositioned at ' + range.startOffset + ' of ' + range.startContainer);
+      //console.log('repositioned at ' + range.startOffset + ' of ' + range.startContainer);
     } else {
       this.startContainer = null;
       this.startOffset    = null;
@@ -283,8 +275,6 @@ class MessageInput extends React.Component {
     var sel, range, html;
 
     sel = window.getSelection();
-    console.log('selection:');
-    console.log(sel);
     range = sel.getRangeAt(0);
 
     this.inputDiv.current.focus();
@@ -294,12 +284,11 @@ class MessageInput extends React.Component {
     if (refocus) {
       sel = window.getSelection();
       range = sel.getRangeAt(0);
-      console.log('refocusing');
     }
 
     if (this.startContainer) {
-      console.log('repositioning to ' + this.startOffset + ' in:');
-      console.log(this.startContainer);
+      //console.log('repositioning to ' + this.startOffset + ' in:');
+      //console.log(this.startContainer);
       range.setStart(this.startContainer, this.startOffset);
       range.setEnd(this.endContainer, this.endOffset);
     }
@@ -321,6 +310,7 @@ class MessageInput extends React.Component {
               let savedCursorPosition = this.startContainer !== null;
 
               if (refocus) {
+                //console.log('refocus');
                 this.inputDiv.current.focus();
               }
 
@@ -335,6 +325,7 @@ class MessageInput extends React.Component {
               }
 
               if (!savedCursorPosition && foreignSelection) {
+                /*
                 console.log('foreign range:');
                 console.log(range);
                 console.log('input:');
@@ -343,7 +334,7 @@ class MessageInput extends React.Component {
                 console.log(this.startContainer);
                 console.log('end offset: ' + this.endOffset + ' of ');
                 console.log(this.endContainer);
-
+                */
                 if (this.inputDiv.current.children.length === 0 ||
                     this.inputDiv.current.children[this.inputDiv.current.children-1].nodeType !== 3) {
                   let space = document.createTextNode('');
@@ -385,10 +376,6 @@ class MessageInput extends React.Component {
 
               this.startContainer = this.endContainer = space;
               this.startOffset = this.endOffset = 0;
-
-
-              console.log('img next sib:')
-              console.log(img.nextSibling);
           }
       } else if (document.selection && document.selection.createRange) {
           document.selection.createRange().text = text;

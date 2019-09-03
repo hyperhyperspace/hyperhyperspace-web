@@ -126,8 +126,6 @@ class ChatController {
   }
 
   getChats() {
-    console.log(this.conversations);
-
     let result = {};
 
     for (let key of Object.keys(this.conversations)) {

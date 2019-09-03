@@ -128,7 +128,7 @@ class EmojiPicker extends React.Component {
 
         <Tabs value={this.state.selectedIdx} onChange={boundHandleTabChange}>
           {[0, 1, 2, 3, 4, 5, 6, 7].map(
-            idx => (<Tab style={{minWidth: (isSmallDevice? '40px' : '80px')}} icon={category_icons[idx]} />)
+            idx => (<Tab key={'emoji-group-'+idx} style={{minWidth: (isSmallDevice? '40px' : '80px')}} icon={category_icons[idx]} />)
           )}
         </Tabs>
         {/*<SwipeableViews index={this.state.selectedIdx} onChangeIndex={boundHandleTabChange}>*/}
@@ -137,7 +137,7 @@ class EmojiPicker extends React.Component {
                 <Grid container style={{height: (isSmallDevice? '100px' : '150px'), overflow:'scroll'}} onScroll={boundHandleScroll} spacing={8} >
                   {categories.get(category_keys[this.state.selectedIdx]).slice(0, this.state.shownEmojisPerTab[this.state.selectedIdx]).map((key, i) =>
                     <Grid key={key + '-grid'} item>
-                      <Emoji key={key} onClick={((ev) => {this.props.onEmoji((lib[key].char));ev.preventDefault(); ev.stopPropagation();})} text={lib[key].char} size='28px' onChar={this.props.onChar}/>
+                      <Emoji key={key} onClick={((ev) => {this.props.onEmoji((lib[key].char));ev.preventDefault(); ev.stopPropagation();})} text={lib[key].char} size='28px'/>
                     </Grid>
                   )}
                 </Grid>
