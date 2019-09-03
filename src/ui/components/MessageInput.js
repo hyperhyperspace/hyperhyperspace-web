@@ -275,23 +275,26 @@ class MessageInput extends React.Component {
     var sel, range, html;
 
     sel = window.getSelection();
-    range = sel.getRangeAt(0);
-
-    this.inputDiv.current.focus();
-
-    let refocus = !range.startContainer || (range.startContainer.id != 'inputDiv' && range.startContainer.parentElement.id != 'inputDiv');
-
-    if (refocus) {
-      sel = window.getSelection();
+    if (sel.rangeCount) {
       range = sel.getRangeAt(0);
+
+      this.inputDiv.current.focus();
+
+      let refocus = !range.startContainer || (range.startContainer.id != 'inputDiv' && range.startContainer.parentElement.id != 'inputDiv');
+
+      if (refocus) {
+        sel = window.getSelection();
+        range = sel.getRangeAt(0);
+      }
+
+      if (this.startContainer) {
+        //console.log('repositioning to ' + this.startOffset + ' in:');
+        //console.log(this.startContainer);
+        range.setStart(this.startContainer, this.startOffset);
+        range.setEnd(this.endContainer, this.endOffset);
+      }
     }
 
-    if (this.startContainer) {
-      //console.log('repositioning to ' + this.startOffset + ' in:');
-      //console.log(this.startContainer);
-      range.setStart(this.startContainer, this.startOffset);
-      range.setEnd(this.endContainer, this.endOffset);
-    }
   }
 
   insertTextAtCursor(text) {
@@ -300,11 +303,18 @@ class MessageInput extends React.Component {
 
       if (window.getSelection) {
           sel = window.getSelection();
-          if (sel.getRangeAt && sel.rangeCount) {
-              range = sel.getRangeAt(0);
+          if (sel.getRangeAt) {
+              console.log(sel);
+              if (sel.rangeCount) {
+                range = sel.getRangeAt(0);
+              } else {
+                range = document.createRange();
+              }
 
-              let noSelection = !range.startContainer;
-              let foreignSelection = !noSelection && (range.startContainer.id !== 'inputDiv' && range.startContainer.parentElement.id !== 'inputDiv')
+
+              let noSelection = range.startContainer == null;
+
+              let foreignSelection = !noSelection && (range.startContainer.id !== 'inputDiv' && (range.startContainer.parentElment == null || range.startContainer.parentElement.id !== 'inputDiv'))
 
               let refocus = noSelection || foreignSelection;
               let savedCursorPosition = this.startContainer !== null;
@@ -314,8 +324,8 @@ class MessageInput extends React.Component {
                 this.inputDiv.current.focus();
               }
 
-              if (range.startContainer !== null &&
-                  range.startContainer.parentElement === null) {
+              if (range && (range.startContainer !== null &&
+                            range.startContainer.parentElement === null)) {
                   foreignSelection = true;
               }
 
