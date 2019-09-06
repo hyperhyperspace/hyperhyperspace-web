@@ -7,9 +7,9 @@ import Timestamps from '../../core/util/timestamps.js';
 
 class ChatController {
 
-  constructor(control) {
-    this.control = control;
-    this.peer = this.control.getActivePeer();
+  constructor(root) {
+    this.root = root;
+    this.peer = this.root.getActivePeer();
     this.contactsService = this.peer.getService(ContactsService.SERVICE_NAME);
     this.chatService = this.peer.getService(ChatService.SERVICE_NAME);
 

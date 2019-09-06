@@ -15,9 +15,9 @@ class ChatView extends React.Component {
   constructor(props) {
     super(props);
 
-    //this.controller = props.controller;
-    this.allChatsController = new AllChatsController(props.control);
-    this.chatController     = new ChatController(props.control);
+    this.controller = props.controller;
+    this.allChatsController = this.controller.getAllChatsController();
+    this.chatController     = this.controller.getChatController();
 
     this.allChatsController.addStateCallback(() => {
       this.setState({pendingInvites: this.allChatsController.getPendingInvites(),
@@ -93,12 +93,12 @@ class ChatView extends React.Component {
               contacts={this.state.contacts}
               pendingInvites={this.state.pendingInvites}
               receivedInviteInfo={null}
-              controller={this.allChatsController}
+              controller={this.controller}
             />
           </Hidden>
         </Grid>
         <Grid item xs={12} md={8} style={{overflow:'scroll', height: '100%', position: 'relative'}}>
-          <Chat chats={this.state.chats} loadingChats={this.state.loadingChats} controller={this.chatController} />
+          <Chat counterpartId={this.props.match.params.id} chats={this.state.chats} loadingChats={this.state.loadingChats} controller={this.controller} />
         </Grid>
       </Grid>
 

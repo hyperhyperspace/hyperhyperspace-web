@@ -503,7 +503,7 @@ class AllChats extends React.Component {
                         color="primary"
                         style={{width:'100%'}}
                         onClick={() => {
-                          this.props.controller.createInvite(this.state.newInviteRecipientName);
+                          this.props.controller.getAllChatsController().createInvite(this.state.newInviteRecipientName);
                           this.setState({newInviteRecipientName: ''});
                         }}>
                       Create invite link
@@ -524,7 +524,7 @@ class AllChats extends React.Component {
                           <ListItemText disableTypography={true} primary={<Typography variant="h6" style={{verticalAlign:'middle', width:'66%'}}>{invite.receiverName}</Typography>} />
                           <ListItemSecondaryAction>
                              <Button variant="contained" color="primary" size="small" style={{verticalAlign:'middle', marginRight:'4px'}} onClick={()=>{this.setState({showSendInviteDialogId:invite.id});}}>Send</Button>
-                             <Button size="small" style={{verticalAlign:'middle'}} onClick={() => {this.props.controller.cancelInvite(invite.id)}}>Cancel</Button>
+                             <Button size="small" style={{verticalAlign:'middle'}} onClick={() => {this.props.controller.getAllChatsController().cancelInvite(invite.id)}}>Cancel</Button>
                           </ListItemSecondaryAction>
                         </ListItem>
                       );
@@ -602,7 +602,7 @@ class AllChats extends React.Component {
                   </DialogContent>
                   <DialogActions>
                     <Link to={'/chat'} style={{ textDecoration: 'none' }}>
-                      <Button onClick={() => { this.props.controller.acceptInvite(this.props.receivedInviteInfo)}} color="primary" autoFocus>
+                      <Button onClick={() => { this.props.controller.getAllChatsController().acceptInvite(this.props.receivedInviteInfo)}} color="primary" autoFocus>
                         Add {(this.props.receivedInviteInfo === null ? '' : this.props.receivedInviteInfo.i.name)}
                       </Button>
                     </Link>

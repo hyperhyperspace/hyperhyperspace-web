@@ -720,7 +720,7 @@ class ReplicationService {
   constructor(peer) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.INFO());
+    this.logger.setLevel(Logger.DEBUG());
 
     this.peer   = peer;
     this.source = null;
@@ -855,12 +855,16 @@ class ReplicationService {
 
   processNewOperation(operation) {
 
+    console.log('processing operation:');
+    console.log(operation);
+
     if (this.receivedObjects.has(operation.fingerprint())) {
       this.logger.debug('source ' + this.source.fingerprint() + ' ignoring remote operation ' + operation.fingerprint());
       this.receivedObjects.delete(operation.fingerprint());
     } else {
       this.logger.debug('source ' + this.source.fingerprint() + ' scheduling operation ' + operation.fingerprint() + ' for replication');
       // the object is local, we must ship it.
+      this.logger.debug('receivers for ' + operation.getReplicable().fingerprint() + ' are ' + operation.getReplicable().getReplicaControl().getReceivers().size);
       operation.getReplicable().getReplicaControl().getReceivers().forEach(
         receiver => {
           let destination = receiver.getRoot();

@@ -65,7 +65,8 @@ class Chat extends React.Component {
     super(props);
 
     this.chatDiv = React.createRef();
-    this.scrollIsAtBottom = true;
+    this.userDidScroll    = false;
+    this.scrollIsAtBottom = false;
   }
 
   someEvent(e) {
@@ -75,31 +76,42 @@ class Chat extends React.Component {
   }
 
   scrolled = () => {
+    this.userDidScroll    = true;
     this.scrollIsAtBottom = ((this.chatDiv.current.scrollHeight - this.chatDiv.current.scrollTop) === this.chatDiv.current.clientHeight);
   }
 
   scrollToBottom() {
-    this.chatDiv.current.scrollTop = this.chatDiv.current.scrollHeight;
+    if (this.chatDiv.current !== null) {
+      this.chatDiv.current.scrollTop = this.chatDiv.current.scrollHeight;
+    }
   }
 
   componentDidUpdate(prevProps) {
 
     var newMessage = false;
-    if (prevProps.chats === null) {
-      newMessage = this.props.chats != null;
+
+    if (this.props.counterpartId !== prevProps.counterpartId) {
+      newMessage = true;
+      this.userDidScroll = false;
     } else {
-      if (this.props.chats !== null) {
-        newMessage = !(prevProps.chats.messages.length === this.props.chats.messages.length);
+      if (prevProps.chats === null) {
+        newMessage = this.props.chats != null;
+      } else {
+        if (this.props.chats !== null) {
+          newMessage = !(prevProps.chats.messages.length === this.props.chats.messages.length);
+        }
       }
     }
 
-    if (newMessage && this.scrollIsAtBottom) {
+
+
+    if (newMessage && (!this.userDidScroll || this.scrollIsAtBottom)) {
       setTimeout(() => {this.scrollToBottom();});
     }
   }
 
   componentDidMount() {
-    this.scrollToBottom();
+    setTimeout(this.scrollToBottom());
   }
 
   render() {

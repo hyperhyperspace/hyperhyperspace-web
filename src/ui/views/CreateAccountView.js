@@ -48,14 +48,14 @@ class CreateAccountView extends React.Component {
                    creatingAccount : false,
                    accountReady    : false,
                    nextLocation    : nextLocation,
-                   appControl      : this.props.appControl
+                   controller      : this.props.controller
                  };
 
 
   }
 
   static getDerivedStateFromProps(props, state) {
-    return {'appControl': props.appControl};
+    return {'controller': props.controller};
   }
 
   showDialog() {
@@ -148,17 +148,17 @@ class CreateAccountView extends React.Component {
             <Button onClick={() => {
                 this.setState({showDialog: false, dialogRequested: false, creatingAccount: true});
                 setTimeout(() => {
-                  let account  = this.state.appControl
+                  let account  = this.state.controller
                                      .getPeerManager()
                                      .createAccount({'name' : this.state.name});
                   account.addLinkupServer('wss://mypeer.net');
-                  this.state.appControl
+                  this.state.controller
                       .getPeerManager()
                       .createLocalAccountInstance(account,
                                                   {'name': 'My first device'})
                       .then(
                             (instance) => {
-                              this.state.appControl.setActivePeer(instance.fingerprint());
+                              this.state.controller.setActivePeer(instance.fingerprint());
                               this.props.history.push(this.state.nextLocation);
                             });
                 }, 50)
@@ -178,7 +178,7 @@ class CreateAccountView extends React.Component {
 
             <CircularProgress />
             <DialogContentText>
-              {"Please wait while your web browser initializes your account."}
+              {"Your web browsing is creating your secret key and initializing your account. Please don't close this window."}
             </DialogContentText>
           </DialogContent>
         </Dialog>

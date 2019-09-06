@@ -10,39 +10,8 @@ import ChatView from './views/ChatView.js';
 import CreateAccountView from './views/CreateAccountView.js';
 import WaitView from './views/WaitView.js';
 
-import MessagingService from '../services/mesh/messaging.js';
-import ContactsService from '../services/people/contacts.js';
-import ChatService from '../services/people/chat.js';
-import ConsoleService from '../services/development/console.js';
+import RootController from './controllers/RootController.js';
 
-class AppControl {
-  constructor(app) {
-    this.app         = app;
-    this.peerManager = app.props.peerManager;
-    this.activePeer  = null;
-  }
-
-  getPeerManager() {
-    return this.peerManager;
-  }
-
-  setActivePeer(fingerprint) {
-    this.activePeer = this.peerManager.activatePeerForInstance(fingerprint);
-
-    let messaging = new MessagingService(this.activePeer);
-    let contacts  = new ContactsService(this.activePeer);
-    let devConsole = new ConsoleService(this.activePeer);
-    let chat = new ChatService(this.activePeer);
-
-    this.activePeer.start().then(() => {
-      this.app.setState({'peer': this.activePeer});
-    });
-  }
-
-  getActivePeer() {
-    return this.activePeer;
-  }
-}
 
 class App extends Component {
 
@@ -50,13 +19,16 @@ class App extends Component {
     super(props);
 
     this.state = {peer: null, askForAccountCreation: false};
-    this.appControl = new AppControl(this);
-    this.appControl.getPeerManager().getAvailableInstanceRecords().then(
+    this.controller = new RootController(this.props.peerManager);
+    this.controller.addPeerActivationCallback((activePeer) => {
+      this.setState({'peer': activePeer});
+    });
+    this.controller.getPeerManager().getAvailableInstanceRecords().then(
       instanceRecords => {
         // TODO: for now if there is more than one account, we
         //       will just use the first one.
           if (instanceRecords.length > 0) {
-            this.appControl
+            this.controller
                 .setActivePeer(instanceRecords[0]['instance']);
           } else {
             this.setState({askForAccountCreation: true});
@@ -83,20 +55,20 @@ class App extends Component {
 
             { this.state.peer === null ? (
 
-              <Route render={({match}) => <CreateAccountView appControl={this.appControl}/>} />
+              <Route render={({match}) => <CreateAccountView controller={this.controller}/>} />
 
             ) : (
               <Switch>
-                <Route path="/chat" exact={true} render={({match}) => <AllChatsView control={this.appControl} controller={this.chatsController} match={match} /> } />
+                <Route path="/chat" exact={true} render={({match}) => <AllChatsView controller={this.controller} match={match} /> } />
                 {/*<Route path="/chat/:name/:id" render={({match}) => <ChatView controller={this.chatsController} match={match} key={'chat-id-' + match.id}/>} />*/}
-                <Route path="/chat/:name/:id" render={({match}) => <ChatView control={this.appControl} controller={this.chatsController} match={match} />} />
-                <Route path="/new-chat" exact={true} render={({match}) => <AllChatsView control={this.appControl} controller={this.chatsController} match={match} /> } />
+                <Route path="/chat/:name/:id" render={({match}) => <ChatView controller={this.controller} match={match} />} />
+                <Route path="/new-chat" exact={true} render={({match}) => <AllChatsView controller={this.controller} match={match} /> } />
                 {/*<Route path="/new-chat/:name/:id" render={({match}) => <ChatView controller={this.chatsController} match={match} key={'new-chat-id-' + match.id}/>} />*/}
-                <Route path="/new-chat/:name/:id" render={({match}) => <ChatView control={this.appControl} controller={this.chatsController} match={match} />} />
-                <Route path="/add-contacts" exact={true} render={({match}) => <AllChatsView control={this.appControl} controller={this.chatsController} match={match} /> } />
+                <Route path="/new-chat/:name/:id" render={({match}) => <ChatView controller={this.controller} match={match} />} />
+                <Route path="/add-contacts" exact={true} render={({match}) => <AllChatsView controller={this.controller} match={match} /> } />
                 {/*<Route path="/add-contacts/:name/:id" render={({match}) => <ChatView controller={this.chatsController} match={match} key={'add-contacts-chat-id-' + match.id}/>}*/} />
-                <Route path="/add-contacts/:name/:id" render={({match}) => <ChatView control={this.appControl} controller={this.chatsController} match={match} />} />
-                <Route path="/contact-link/:token" exact={false} render={({match}) => <AllChatsView control={this.appControl} controller={this.chatsController} match={match} />} />
+                <Route path="/add-contacts/:name/:id" render={({match}) => <ChatView controller={this.controller} match={match} />} />
+                <Route path="/contact-link/:token" exact={false} render={({match}) => <AllChatsView controller={this.controller} match={match} />} />
                 <Redirect from="/" to="/chat" />
               </Switch>
             )}

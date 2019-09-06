@@ -238,7 +238,7 @@ class MessageInput extends React.Component {
 
   sendMessage = () => {
     if (this.messageText.trim().length > 0) {
-      this.props.controller.sendChat(
+      this.props.controller.getChatController().sendChat(
         this.props.counterpartId,
         this.messageText
             .replace(/[<]img[^>]*class[=]["]emoji["][^>]*alt[=]["]([^"]*)["][^>]*[>]/g, '$1')
@@ -300,17 +300,14 @@ class MessageInput extends React.Component {
   insertTextAtCursor(text) {
       var sel, range, html;
 
-
       if (window.getSelection) {
           sel = window.getSelection();
           if (sel.getRangeAt) {
-              console.log(sel);
               if (sel.rangeCount) {
                 range = sel.getRangeAt(0);
               } else {
                 range = document.createRange();
               }
-
 
               let noSelection = range.startContainer == null;
 

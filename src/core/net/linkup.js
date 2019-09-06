@@ -74,7 +74,7 @@ class LinkupManager {
 class WebsocketLinkupConnection {
   constructor(serverURL) {
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.INFO());
+    this.logger.setLevel(Logger.DEBUG());
 
     this.serverURL = serverURL;
     this.ws = null;

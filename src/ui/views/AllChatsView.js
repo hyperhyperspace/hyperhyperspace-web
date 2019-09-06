@@ -14,13 +14,14 @@ class AllChatsView extends React.Component {
     super(props);
     // props.match.params.*
 
-    this.controller = new AllChatsController(props.control);
-    this.chatController     = new ChatController(props.control);
+    this.controller = props.controller;
+    this.allChatsController = props.controller.getAllChatsController();
+    this.chatController    = this.controller.getChatController();
 
 
-    this.controller.addStateCallback(() => {
-      this.setState({pendingInvites: this.controller.getPendingInvites(),
-                     contacts: this.controller.getContacts()});
+    this.allChatsController.addStateCallback(() => {
+      this.setState({pendingInvites: this.allChatsController.getPendingInvites(),
+                     contacts: this.allChatsController.getContacts()});
     });
 
 
@@ -38,8 +39,8 @@ class AllChatsView extends React.Component {
                     newChat: props.match.url.startsWith('/new-chat'),
                     addContacts: props.match.url.startsWith('/add-contacts'),
                     showReceiveInvite: props.match.url.startsWith('/contact-link'),
-                    pendingInvites: this.controller.getPendingInvites(),
-                    contacts: this.controller.getContacts(),
+                    pendingInvites: this.allChatsController.getPendingInvites(),
+                    contacts: this.allChatsController.getContacts(),
                     receivedInviteInfo: receivedInviteInfo
                  };
 
@@ -49,9 +50,9 @@ class AllChatsView extends React.Component {
                       loadingChatsSummary: false
                     });
                   });
-    /*this.controller = props.controller;
+    /*this.allChatsController = props.controller;
 
-    this.controller.queryView({view: this.controller.VIEW_CHATS_SUMMARY(), callback: this.receiveChatsSummary});*/
+    this.allChatsController.queryView({view: this.allCatsController.VIEW_CHATS_SUMMARY(), callback: this.receiveChatsSummary});*/
   }
 
   static getDerivedStateFromProps(props, state) {

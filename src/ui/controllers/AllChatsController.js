@@ -2,10 +2,10 @@ import ContactsService from '../../services/people/contacts.js';
 import { InviteInfo } from '../../services/people/contacts.js';
 
 class AllChatsController {
-  constructor(control) {
+  constructor(root) {
 
-    this.control = control;
-    this.peer = this.control.getActivePeer();
+    this.root = root;
+    this.peer = this.root.getActivePeer();
     this.contactsService = this.peer.getService(ContactsService.SERVICE_NAME);
 
     let stateCallbacksCaller = () => {

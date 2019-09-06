@@ -76,6 +76,7 @@ class DeliveryService {
     if (this.waitForInit === null) {
       this.networkNode.start();
       this.waitForInit = Promise.resolve(this);
+      setInterval(() => { console.log(this.getDiagnosticsInfo()); }, 10000);
     }
 
     return this.waitForInit;
@@ -83,6 +84,17 @@ class DeliveryService {
 
   waitUntilStartup() {
     return this.waitForInit;
+  }
+
+  getDiagnosticsInfo() {
+    return {
+      verified: this.verifiedConnections,
+      all: this.allConnections,
+      attempts: this.connectionAttempts,
+      pending: this.pendingMessages,
+      pendingById: this.pendingMessagesByIdentity,
+      connectionStatus: this.status
+    };
   }
 
   getPendingMessagesForIdentity(targetId) {
