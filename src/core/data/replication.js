@@ -103,7 +103,7 @@ class DataOpBase extends MetaOp {
 
   verify() {
 
-    let replicable = this.replicalbe.getReplicableForControl();
+    let replicable = this.replicable.getReplicableForControl();
 
     return this.authOp !== null &&
            this.replicable.getReplicableForControl()
@@ -720,7 +720,7 @@ class ReplicationService {
   constructor(peer) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.DEBUG());
+    this.logger.setLevel(Logger.INFO());
 
     this.peer   = peer;
     this.source = null;
@@ -809,22 +809,30 @@ class ReplicationService {
     this.logger.debug('source ' + this.source.fingerprint() + ' is registering replicable ' + replicable.fingerprint())
 
     if (replicable.getParentReplicable() === null) {
-      this.replicables[replicable.fingerprint()] = replicable;
 
       replicable.subscribeControl(this.store);
-      replicable.pullControl(this.store);
+
+      let loadedPromise = replicable.pullControl(this.store);
+      this.replicables[replicable.fingerprint()] = loadedPromise;
+
     }
 
-
+    // the replicable object must always be saved before the first
+    // operation can be saved, so I guess this should work.
+    // it's subtle, though.
     this.store.registerTagCallback(MetaOp.tagFor(replicable), this.processNewOperationBound);
+  }
+
+  getInitializedReplicable(replicable) {
+    return this.replicables[replicable.fingerprint()];
   }
 
   processNewReplicable(replicable) {
     this.registerReplicable(replicable);
   }
 
-  static _shouldSend(source, destination, op) {
-    let control = op.getReplicable().getReplicaControl();
+  static _shouldSend(source, destination, op, replicable) {
+    let control = replicable.getReplicaControl();
     if (source.equals(destination)) {
       return false;
     } else if (!op.isControl() || op.getAction() !== ControlOp.RECEIVER_SET) {
@@ -853,66 +861,72 @@ class ReplicationService {
 
   }
 
-  processNewOperation(operation) {
 
-    console.log('processing operation:');
-    console.log(operation);
+  // TODO: when we add a new admin or emitter, everybody needs to send him
+  //       all the operations mutating the receiver set.
+
+  processNewOperation(operation) {
 
     if (this.receivedObjects.has(operation.fingerprint())) {
       this.logger.debug('source ' + this.source.fingerprint() + ' ignoring remote operation ' + operation.fingerprint());
       this.receivedObjects.delete(operation.fingerprint());
     } else {
       this.logger.debug('source ' + this.source.fingerprint() + ' scheduling operation ' + operation.fingerprint() + ' for replication');
-      // the object is local, we must ship it.
-      this.logger.debug('receivers for ' + operation.getReplicable().fingerprint() + ' are ' + operation.getReplicable().getReplicaControl().getReceivers().size);
-      operation.getReplicable().getReplicaControl().getReceivers().forEach(
-        receiver => {
-          let destination = receiver.getRoot();
-          if (ReplicationService._shouldSend(this.source, destination, operation)) {
-            this.storePendingAndEnque(operation, destination);
+      // the object was created locally, we must ship it.
+
+      this.getInitializedReplicable(operation.getReplicable().getReplicableForControl()).then(initialized => {
+
+        initialized.getReplicaControl().getReceivers().forEach(
+          receiver => {
+            let destination = receiver.getRoot();
+            if (ReplicationService._shouldSend(this.source, destination, operation, initialized)) {
+              this.storePendingAndEnque(operation, destination);
+            }
           }
-        }
-      );
-      if (operation instanceof ControlOp &&
-          operation.getAction() === ControlOp.RECEIVER_SET &&
-          OperationalSet.getActionFromOp(operation.getAuxOp()) === 'add') {
+        );
 
-        this.store.loadAllByTag(ReplicationService.tagForChildOf(operation.getReplicable()))
-                  .then(childReplicables => {
-                    let allReplicables = childReplicables;
-                    allReplicables.push(operation.getReplicable());
-                    allReplicables.forEach(replicable => {
-                      this.store.loadAllByTag(MetaOp.tagFor(replicable)).then(
-                        prevOperations => {
+        if (operation instanceof ControlOp &&
+            operation.getAction() === ControlOp.RECEIVER_SET &&
+            OperationalSet.getActionFromOp(operation.getAuxOp()) === 'add') {
 
-                          let newTargetDestination = operation.getTarget().getRoot();
-                          for (let prevOp of prevOperations) {
-                            // FIXME: since callbacks are fired _after_ saving an object,
-                            // the subscription should have added the new receiver by the
-                            // time the operation that does it triggers the replication hook
+          this.store.loadAllByTag(ReplicationService.tagForChildOf(operation.getReplicable()))
+                    .then(childReplicables => {
+                      let allReplicables = childReplicables;
+                      allReplicables.push(operation.getReplicable());
+                      allReplicables.forEach(replicable => {
+                        this.store.loadAllByTag(MetaOp.tagFor(replicable)).then(
+                          prevOperations => {
 
-                            // but that is not happening, so we always do it here
+                            let newTargetDestination = operation.getTarget().getRoot();
+                            for (let prevOp of prevOperations) {
+                              // FIXME: since callbacks are fired _after_ saving an object,
+                              // the subscription should have added the new receiver by the
+                              // time the operation that does it triggers the replication hook
 
-                            //if (!prevOp.equals(operation)) {
-                              try {
-                                if (ReplicationService._shouldSend(this.source, newTargetDestination, prevOp)) {
-                                  this.storePendingAndEnque(prevOp, newTargetDestination);
+                              // but that is not happening, so we always do it here
+
+                              //if (!prevOp.equals(operation)) {
+                                try {
+                                  if (ReplicationService._shouldSend(this.source, newTargetDestination, prevOp, initialized)) {
+                                    this.storePendingAndEnque(prevOp, newTargetDestination);
+                                  }
+
+                                } catch(e) {
+                                  this.logger.error('could not ship ' + prevOp.fingerprint());
+                                  console.log(e);
                                 }
-
-                              } catch(e) {
-                                this.logger.error('could not ship ' + prevOp.fingerprint());
-                                console.log(e);
-                              }
-                            //} else {
-                            //  console.log('enqueuing PREV operation ' + prevOp.fingerprint() + ' destination:' + operation.getTarget().getRoot().fingerprint());
-                            //}
+                              //} else {
+                              //  console.log('enqueuing PREV operation ' + prevOp.fingerprint() + ' destination:' + operation.getTarget().getRoot().fingerprint());
+                              //}
+                            }
                           }
-                        }
-                      )
+                        )
+                      });
                     });
-                  });
 
-      }
+        }
+
+      });
     }
   }
 

@@ -7,7 +7,7 @@ import withWidth from '@material-ui/core/withWidth';
 import Chat from '../components/Chat.js';
 import AllChats from '../components/AllChats.js';
 
-import AllChatsController from '../controllers/AllChatsController.js';
+import ContactsController from '../controllers/ContactsController.js';
 import { InviteInfo } from '../../services/people/contacts.js';
 import ChatController from '../controllers/ChatController.js';
 
@@ -16,12 +16,12 @@ class ChatView extends React.Component {
     super(props);
 
     this.controller = props.controller;
-    this.allChatsController = this.controller.getAllChatsController();
+    this.contactsController = this.controller.getContactsController();
     this.chatController     = this.controller.getChatController();
 
-    this.allChatsController.addStateCallback(() => {
-      this.setState({pendingInvites: this.allChatsController.getPendingInvites(),
-                     contacts: this.allChatsController.getContacts()});
+    this.contactsController.addStateCallback(() => {
+      this.setState({pendingInvites: this.contactsController.getPendingInvites(),
+                     contacts: this.contactsController.getContacts()});
     });
 
     this.chatController.addStateCallback(() => {
@@ -35,8 +35,8 @@ class ChatView extends React.Component {
                     loadingChatsSummary: true,
                     newChat: props.match.url.startsWith('/new-chat'),
                     addContacts: props.match.url.startsWith('/add-contacts'),
-                    pendingInvites: this.allChatsController.getPendingInvites(),
-                    contacts: this.allChatsController.getContacts(),
+                    pendingInvites: this.contactsController.getPendingInvites(),
+                    contacts: this.contactsController.getContacts(),
                   };
 
     this.chatController.init(() => {

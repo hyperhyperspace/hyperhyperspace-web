@@ -5,7 +5,7 @@ import ChatService from '../../services/people/chat.js';
 import ConsoleService from '../../services/development/console.js';
 
 import ChatController from './ChatController.js';
-import AllChatsController from './AllChatsController.js';
+import ContactsController from './ContactsController.js';
 
 class RootController {
 
@@ -40,7 +40,7 @@ class RootController {
     let chat = new ChatService(this.activePeer);
 
     this.activePeer.start().then(() => {
-      this.allChats = new AllChatsController(this);
+      this.allChats = new ContactsController(this);
       this.chat     = new ChatController(this);
       this.peerActivationCallbacks.forEach(cb => {
         cb(this.getActivePeer());
@@ -55,7 +55,7 @@ class RootController {
     return this.activePeer;
   }
 
-  getAllChatsController() {
+  getContactsController() {
     return this.allChats;
   }
 

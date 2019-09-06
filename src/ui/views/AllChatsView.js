@@ -4,7 +4,7 @@ import Grid from '@material-ui/core/Grid';
 
 import AllChats from '../components/AllChats.js';
 
-import AllChatsController from '../controllers/AllChatsController.js';
+import ContactsController from '../controllers/ContactsController.js';
 import { InviteInfo } from '../../services/people/contacts.js';
 import ChatController from '../controllers/ChatController.js';
 
@@ -15,13 +15,13 @@ class AllChatsView extends React.Component {
     // props.match.params.*
 
     this.controller = props.controller;
-    this.allChatsController = props.controller.getAllChatsController();
+    this.contactsController = props.controller.getContactsController();
     this.chatController    = this.controller.getChatController();
 
 
-    this.allChatsController.addStateCallback(() => {
-      this.setState({pendingInvites: this.allChatsController.getPendingInvites(),
-                     contacts: this.allChatsController.getContacts()});
+    this.contactsController.addStateCallback(() => {
+      this.setState({pendingInvites: this.contactsController.getPendingInvites(),
+                     contacts: this.contactsController.getContacts()});
     });
 
 
@@ -39,8 +39,8 @@ class AllChatsView extends React.Component {
                     newChat: props.match.url.startsWith('/new-chat'),
                     addContacts: props.match.url.startsWith('/add-contacts'),
                     showReceiveInvite: props.match.url.startsWith('/contact-link'),
-                    pendingInvites: this.allChatsController.getPendingInvites(),
-                    contacts: this.allChatsController.getContacts(),
+                    pendingInvites: this.contactsController.getPendingInvites(),
+                    contacts: this.contactsController.getContacts(),
                     receivedInviteInfo: receivedInviteInfo
                  };
 
@@ -50,9 +50,9 @@ class AllChatsView extends React.Component {
                       loadingChatsSummary: false
                     });
                   });
-    /*this.allChatsController = props.controller;
+    /*this.contactsController = props.controller;
 
-    this.allChatsController.queryView({view: this.allCatsController.VIEW_CHATS_SUMMARY(), callback: this.receiveChatsSummary});*/
+    this.contactsController.queryView({view: this.allCatsController.VIEW_CHATS_SUMMARY(), callback: this.receiveChatsSummary});*/
   }
 
   static getDerivedStateFromProps(props, state) {

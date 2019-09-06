@@ -20,7 +20,7 @@ class DeliveryService {
   constructor(peer, identity, linkupServer, verifiedMessageCallback) {
 
     this.logger = new Logger(this);
-    this.logger.setLevel(Logger.DEBUG());
+    this.logger.setLevel(Logger.INFO());
 
     this.verifiedMessageCallback      = verifiedMessageCallback;
     this.handleConnectionFailureBound = this.handleConnectionFailure.bind(this);
@@ -76,7 +76,7 @@ class DeliveryService {
     if (this.waitForInit === null) {
       this.networkNode.start();
       this.waitForInit = Promise.resolve(this);
-      setInterval(() => { console.log(this.getDiagnosticsInfo()); }, 10000);
+      //setInterval(() => { console.log(this.getDiagnosticsInfo()); }, 10000);
     }
 
     return this.waitForInit;
@@ -239,7 +239,7 @@ class DeliveryService {
     if (vconn === undefined) {
       vconn = null;
     } else if (!vconn.ready()) {
-      delete this.verifiedConnectios[targetId]
+      delete this.verifiedConnections[targetId]
       vconn = null;
     }
 

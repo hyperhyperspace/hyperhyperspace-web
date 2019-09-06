@@ -1,7 +1,7 @@
 import ChatService from '../../services/people/chat.js';
 import ContactsService from '../../services/people/contacts';
 
-import AllChatsController from './AllChatsController.js';
+import ContactsController from './ContactsController.js';
 
 import Timestamps from '../../core/util/timestamps.js';
 
@@ -118,7 +118,7 @@ class ChatController {
           type: 'user-chat',
           counterpartId: counterpart.fingerprint(),
           counterpartName: counterpart.getParam('name'),
-          counterpartNameUrl: AllChatsController.nameToUrl(counterpart.getParam('name')),
+          counterpartNameUrl: ContactsController.nameToUrl(counterpart.getParam('name')),
           counterpartImage: null,
           messages: []
         };

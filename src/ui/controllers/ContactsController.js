@@ -1,7 +1,7 @@
 import ContactsService from '../../services/people/contacts.js';
 import { InviteInfo } from '../../services/people/contacts.js';
 
-class AllChatsController {
+class ContactsController {
   constructor(root) {
 
     this.root = root;
@@ -54,7 +54,7 @@ class AllChatsController {
 
     var letter = '';
     let normaliz = profile.getIdentity().getParam('name').trim().toUpperCase();
-    let url = AllChatsController.nameToUrl(profile.getIdentity().getParam('name'));
+    let url = ContactsController.nameToUrl(profile.getIdentity().getParam('name'));
 
 
     if (normaliz.length>0) {
@@ -112,4 +112,4 @@ class AllChatsController {
 
 }
 
-export default AllChatsController;
+export default ContactsController;
