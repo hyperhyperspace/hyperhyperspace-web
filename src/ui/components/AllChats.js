@@ -523,7 +523,13 @@ class AllChats extends React.Component {
                         <ListItem key={'invite-' + invite.id}>
                           <ListItemText disableTypography={true} primary={<Typography variant="h6" style={{verticalAlign:'middle', width:'66%'}}>{invite.receiverName}</Typography>} />
                           <ListItemSecondaryAction>
-                             <Button variant="contained" color="primary" size="small" style={{verticalAlign:'middle', marginRight:'4px'}} onClick={()=>{this.setState({showSendInviteDialogId:invite.id});}}>Send</Button>
+                             <Button
+                              variant="contained"
+                              color="primary"
+                              size="small"
+                              style={{verticalAlign:'middle', marginRight:'4px'}}
+                              onClick={()=>{if (navigator.share !== undefined) {navigator.share({title:'Invitation to hyperhyper.space', url:window.location.protocol + '//' + window.location.host + "/#/contact-link/" + invite.token});} else { this.setState({showSendInviteDialogId:invite.id});}}}
+                            >Send</Button>
                              <Button size="small" style={{verticalAlign:'middle'}} onClick={() => {this.props.controller.getContactsController().cancelInvite(invite.id)}}>Cancel</Button>
                           </ListItemSecondaryAction>
                         </ListItem>

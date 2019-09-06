@@ -103,6 +103,7 @@ class ChatController {
         userIsSender: userIsSender,
         content: chat.content,
         time: time,
+        timestamp: Timestamps.parseUniqueTimestamp(chat.timestamp),
         isSent: true,
         isReceived: true,
         isRead: false
@@ -156,10 +157,13 @@ class ChatController {
                               (lastMessage['isRead']? 'read' :
                                 (lastMessage['isReceived']? 'received' :
                                   (lastMessage['isSent']? 'sent' : null))),
-          lastMessageContent: lastMessage === null? '' : lastMessage['content'],
+          lastMessageContent: lastMessage === null? '' : (lastMessage['content'].length<38? lastMessage['content'] : (lastMessage['content'].substring(0,38)+'…')),
           lastMessageTime: lastMessage === null? '' : lastMessage['time'],
+          timestamp: lastMessage === null? 0 : lastMessage['timestamp']
         }
       });
+
+    summary.sort((a,b) => (b.timestamp - a.timestamp));
 
     return summary;
   }
