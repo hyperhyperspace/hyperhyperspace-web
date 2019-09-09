@@ -4,16 +4,7 @@ import './index.css';
 import App from './ui/App.js';
 import * as serviceWorker from './serviceWorker';
 
-import { WebsocketLinkupConnection } from './core/net/linkup.js';
-
-import { LinkupManager, Endpoint} from './core/net/linkup.js';
-import { NetworkManager } from './core/net/network.js'
-import { StorageManager, Account, Atom } from './core/data/storage.js';
-import { IdentityKey } from './core/peer/identity.js';
-import { Crypto } from './core/peer/crypto.js';
-import { Types } from './core/data/types.js';
-
-import { PeerManager, Peer } from './core/peer/peering.js';
+import { PeerManager } from './core/peer/peering.js';
 
 
 

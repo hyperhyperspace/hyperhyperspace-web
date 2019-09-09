@@ -3,14 +3,12 @@ import React from 'react';
 import { withStyles } from '@material-ui/core/styles';
 
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
-import Slide from '@material-ui/core/Slide';
 import Grid from '@material-ui/core/Grid';
 
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import IconButton from '@material-ui/core/IconButton';
 import MoodIcon from '@material-ui/icons/Mood';
-import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
 import SendIcon from '@material-ui/icons/Send';
 
@@ -98,7 +96,7 @@ let emojify = (string, size) => {
 
   //alert('o: ' + original);
 
-  return twemoji.parse(original, {size: 72}).replace(/<img /g, '<img style="user-select: text; vertical-align: top; display: inline-block; margin-left: 1px; margin-right: 1px; margin-top: 0px; margin-bottom: 0px; border-top-width: 0px; border-bottom-width: 0px; padding-top: 0px; padding-bottom: 0px;" height="' + size + 'px' + '" width="' + size + 'px' + '" ')
+  return twemoji.parse(original, {size: 72}).replace(/<img /g, '<img style="user-select: text; vertical-align: top; display: inline-block; margin-left: 1px; margin-right: 1px; margin-top: 0px; margin-bottom: 0px; border-top-width: 0px; border-bottom-width: 0px; padding-top: 0px; padding-bottom: 0px;" height="' + size + 'px" width="' + size + 'px" ')
 }
 
 
@@ -199,7 +197,7 @@ class MessageInput extends React.Component {
                           onInput={boundHandleNewMessageChange}
                           onClick={boundHandleNewMessageBlur}
                           onKeyDown={boundHandleNewMessageBlur}
-                          onKeyPress={(event) => { if (event.charCode==13) {
+                          onKeyPress={(event) => { if (event.charCode===13) {
                                                       event.preventDefault();
                                                       event.stopPropagation();
                                                       this.sendMessage();
@@ -272,7 +270,7 @@ class MessageInput extends React.Component {
   }
 
   restoreCursorPosition() {
-    var sel, range, html;
+    var sel, range;
 
     sel = window.getSelection();
     if (sel.rangeCount) {
@@ -280,7 +278,7 @@ class MessageInput extends React.Component {
 
       this.inputDiv.current.focus();
 
-      let refocus = !range.startContainer || (range.startContainer.id != 'inputDiv' && range.startContainer.parentElement.id != 'inputDiv');
+      let refocus = !range.startContainer || (range.startContainer.id !== 'inputDiv' && range.startContainer.parentElement.id !== 'inputDiv');
 
       if (refocus) {
         sel = window.getSelection();
@@ -298,7 +296,7 @@ class MessageInput extends React.Component {
   }
 
   insertTextAtCursor(text) {
-      var sel, range, html;
+      var sel, range;
 
       if (window.getSelection) {
           sel = window.getSelection();

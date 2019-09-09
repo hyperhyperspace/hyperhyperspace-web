@@ -111,7 +111,6 @@ class ContactsService {
   }
 
   async _init() {
-
     await this.peer.getService(ReplicationService.SERVICE_NAME).waitUntilStartup();
 
     let instance  = await this.store.load(this.peer.getAccountInstanceFingerprint());
@@ -123,7 +122,6 @@ class ContactsService {
 
     let datasets  = this.account.getDatasets();
     let replObjSetType = Types.REPL_OBJECT_SET();
-    let replNamespaceType = Types.REPL_NAMESPACE();
     let replObjectReferenceType = Types.REPL_OBJECT_REF();
     let identity = this.account.getIdentity();
 

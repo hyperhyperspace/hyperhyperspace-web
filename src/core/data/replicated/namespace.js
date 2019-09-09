@@ -91,10 +91,11 @@ class ReplicatedNamespaceBase {
   }
 
   get(name, type) {
-    return this.namespace[name][type];
-  }
 
-  get(name) {
+    if (type !== undefined) {
+      return this.namespace[name][type];
+    }
+
     var result = undefined;
     let options = this.namespace[name];
 

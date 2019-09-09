@@ -11,8 +11,6 @@ import Typography from '@material-ui/core/Typography';
 import DoneAllIcon from '@material-ui/icons/DoneAll';
 import DoneIcon from '@material-ui/icons/Done';
 
-import Emoji from './Emoji.js';
-
 import twemoji from 'twemoji';
 
 const styles = theme => ({
@@ -45,14 +43,14 @@ const styles = theme => ({
 
 class ChatMessage extends React.Component {
 
+  /*
   constructor(props) {
     super(props);
-  }
+  } useless-consructor */
 
   render() {
     const { classes }       = this.props;
 
-    const { width }         = this.props;
     const { userIsSender }  = this.props;
     const { content }= this.props;
     const { time }    = this.props;
@@ -61,10 +59,8 @@ class ChatMessage extends React.Component {
     const { isRead }        = this.props;
     const { key }           = this.props;
 
-    const isSmallDevice = width === 'xs' || width === 'sm';
-
-    const sentMessagePadding = '&nbsp'.repeat(20);
-    const receivedMessagePadding = '&nbsp'.repeat(18);
+    //const sentMessagePadding = '&nbsp'.repeat(20);
+    //const receivedMessagePadding = '&nbsp'.repeat(18);
 
     var messageContent;
 
@@ -74,7 +70,7 @@ class ChatMessage extends React.Component {
     for (const ch of content) {
       const imgstr = twemoji.parse(ch);
       if (imgstr.includes('<img')) {
-        if (prevText != '') {
+        if (prevText !== '') {
           messageElements.push(<span style={{verticalAlign: 'middle', minHeight: '20px'}} key={key + '_part_' + messageElements.length}>{prevText}</span>);
           prevText = '';
         }
@@ -89,7 +85,7 @@ class ChatMessage extends React.Component {
           src = match[1];
         }
 
-        messageElements.push(<img style={{verticalAlign: 'middle'}} className='emoji' height='20px' width='20px' key={key + '_part_' + messageElements.length} src={src} />);
+        messageElements.push(<img alt='emoji' style={{verticalAlign: 'middle'}} className='emoji' height='20px' width='20px' key={key + '_part_' + messageElements.length} src={src} />);
       } else {
         prevText = prevText + ch;
       }

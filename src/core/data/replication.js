@@ -1,6 +1,6 @@
 import { openDB } from 'idb';
 import { v4 as uuid } from 'uuid';
-import { Identity, IdentityKey, Crypto } from '../peer/crypto.js';
+import { Crypto } from '../peer/crypto.js';
 import { storable } from './storage.js';
 import { OperationalSet } from './operational/set.js';
 import { Types } from './types.js';
@@ -106,8 +106,7 @@ class DataOpBase extends MetaOp {
     let replicable = this.replicable.getReplicableForControl();
 
     return this.authOp !== null &&
-           this.replicable.getReplicableForControl()
-                             .equals(this.authOp.getReplicable()) &&
+           replicable.equals(this.authOp.getReplicable()) &&
            this.authOp.verify() &&
            this.authOp.getAction() === ControlOp.ADD_EMITTER &&
            this.authOp.getTarget().equals(this.getAuthor()) &&
@@ -572,8 +571,6 @@ function replicable(Class) {
     }
 
     pull(store) {
-      var replicaControl = this;
-
       if (this.parentReplicable !== null && !this.delegatedControl) {
         return this.parentReplicable.pullControl(store)
                    .then(() => {this._pullOnTag(MetaOp.tagFor(this), store);});
@@ -1188,7 +1185,7 @@ class ShippingStatusStore {
   constructor(instanceFP) {
     this.db = openDB('replication-for-' + instanceFP, 1, {
         upgrade(newdb, oldVersion, newVersion, tx) {
-          var objectStatusStore = newdb.createObjectStore(_PENDING_DELIVERIES_STORE, {keyPath: 'hash'});
+          newdb.createObjectStore(_PENDING_DELIVERIES_STORE, {keyPath: 'hash'});
       }
     });
   }

@@ -1,33 +1,20 @@
 import React from 'react';
 
-import classNames from 'classnames';
 import { withStyles } from '@material-ui/core/styles';
 import withWidth from '@material-ui/core/withWidth';
 import { Link } from 'react-router-dom';
 
 import Hidden from '@material-ui/core/Hidden';
-import Paper from '@material-ui/core/Paper';
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography';
 import ArrowBackIcon from '@material-ui/icons/ArrowBack';
-import MoodIcon from '@material-ui/icons/Mood';
-import MicIcon from '@material-ui/icons/Mic';
-import SendIcon from '@material-ui/icons/Send';
-import DoneAllIcon from '@material-ui/icons/DoneAll';
 import IconButton from '@material-ui/core/IconButton';
-import Card from '@material-ui/core/Card';
-import CardContent from '@material-ui/core/CardContent';
-import TextField from '@material-ui/core/TextField';
 import PersonIcon from '@material-ui/icons/Person';
 import Avatar from '@material-ui/core/Avatar';
-import Button from '@material-ui/core/Button';
 import Grid from '@material-ui/core/Grid';
-import Slide from '@material-ui/core/Slide';
-import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 
 import ChatMessage from '../components/ChatMessage.js';
-import EmojiPicker from '../components/EmojiPicker.js';
 
 import MessageInput from '../components/MessageInput.js';
 

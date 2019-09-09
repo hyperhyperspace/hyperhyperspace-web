@@ -10,7 +10,7 @@ class MessagingService {
   MAX_TICK         = 10081;
 
   static ticksToWait(tick) {
-    if (tick==0) {
+    if (tick===0) {
       return 2;
     } else if (tick < 180) {
       return 1;

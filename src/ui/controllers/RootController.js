@@ -34,10 +34,10 @@ class RootController {
   setActivePeer(fingerprint) {
     this.activePeer = this.peerManager.activatePeerForInstance(fingerprint);
 
-    let messaging = new MessagingService(this.activePeer);
-    let contacts  = new ContactsService(this.activePeer);
-    let devConsole = new ConsoleService(this.activePeer);
-    let chat = new ChatService(this.activePeer);
+    new MessagingService(this.activePeer);
+    new ContactsService(this.activePeer);
+    new ConsoleService(this.activePeer);
+    new ChatService(this.activePeer);
 
     this.activePeer.start().then(() => {
       this.allChats = new ContactsController(this);

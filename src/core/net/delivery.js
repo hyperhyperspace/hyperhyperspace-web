@@ -1,7 +1,6 @@
 import { v4 as uuid } from 'uuid';
 
-import { NetworkManager } from './network.js'
-import { LinkupManager, Endpoint} from './linkup.js';
+import { Endpoint} from './linkup.js';
 import { Crypto } from '../peer/crypto.js';
 import { Types } from '../data/types.js';
 
@@ -116,7 +115,7 @@ class DeliveryService {
         }
       }
 
-      if (pending.size == 0) {
+      if (pending.size === 0) {
         delete this.pendingMessagesByIdentity[targetId]
       }
 
@@ -141,6 +140,7 @@ class DeliveryService {
     } else if (callId in this.allConnections) {
       let vconn = this.allConnections[callId];
       delete this.allConnections[callId];
+      vconn.disposeConnection();
       targetId = vconn.getExpectedRemoteFP();
       if (targetId !== null) {
         if (targetId in this.verifiedConnections &&
@@ -404,9 +404,15 @@ class VerifiedConnection {
     return ready;
   }
 
+  disposeConnection() {
+    if (this.connection !== null) {
+      this.connection.close();
+    }
+  }
+
   _send(payload, type) {
 
-    this.logger.debug(this.identity.fingerprint() + ' sending through callId ' + this.connection.getLocalCallId() + ': ' + 'type=' + type);
+    this.logger.debug(this.identity.fingerprint() + ' sending through callId ' + this.connection.getLocalCallId() + ': type=' + type);
     this.logger.trace('payload=' + payload);
 
     if (this.rejected) {
@@ -469,8 +475,6 @@ class VerifiedConnection {
     } catch(e) {
       this.logger.warning('Error while processing incoming message: ' + e);
 
-      throw e;
-
       if (this.rejected && !rejectedBefore) {
         var code = 'unknown';
         if (e.code !== undefined) {
@@ -482,6 +486,9 @@ class VerifiedConnection {
         }
         this._sendRejection(code);
       }
+
+      throw e;
+
     }
 
     if (this.ready() && !readyBefore) {

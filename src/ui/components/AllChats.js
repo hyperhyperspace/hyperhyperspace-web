@@ -9,15 +9,12 @@ import { withRouter } from 'react-router';
 import { withStyles } from '@material-ui/core/styles';
 import withWidth from '@material-ui/core/withWidth';
 
-import Paper from '@material-ui/core/Paper';
 import Hidden from '@material-ui/core/Hidden';
 import AppBar from '@material-ui/core/AppBar';
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 import PersonIcon from '@material-ui/icons/Person';
-import PersonAddIcon from '@material-ui/icons/PersonAdd';
 import ChatBubbleIcon from '@material-ui/icons/ChatBubble';
-import SendIcon from '@material-ui/icons/Send';
 import CallIcon from '@material-ui/icons/Call';
 import DoneIcon from '@material-ui/icons/Done';
 import DoneAllIcon from '@material-ui/icons/DoneAll';
@@ -25,11 +22,8 @@ import VideocamIcon from '@material-ui/icons/Videocam';
 import CallMadeIcon from '@material-ui/icons/CallMade';
 import CallMissedIcon from '@material-ui/icons/CallMissed';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
-import ArrowBackIcon from '@material-ui/icons/ArrowBack';
-import SearchIcon from '@material-ui/icons/Search';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
-import Divider from '@material-ui/core/Divider';
 import ListItemSecondaryAction from '@material-ui/core/ListItemSecondaryAction';
 import ListItemText from '@material-ui/core/ListItemText';
 import Tabs from '@material-ui/core/Tabs';
@@ -44,25 +38,16 @@ import CircularProgress from '@material-ui/core/CircularProgress';
 import Toolbar from '@material-ui/core/Toolbar';
 import MenuIcon from '@material-ui/icons/Menu';
 import IconButton from '@material-ui/core/IconButton';
-import Grid from '@material-ui/core/Grid';
-import Drawer from '@material-ui/core/Drawer';
-import TextField from '@material-ui/core/TextField';
-
-import Input from '@material-ui/core/Input';
-import InputAdornment from '@material-ui/core/InputAdornment';
-
-import Dialog from '@material-ui/core/Dialog';
-import DialogActions from '@material-ui/core/DialogActions';
-import DialogContent from '@material-ui/core/DialogContent';
-import DialogContentText from '@material-ui/core/DialogContentText';
-import DialogTitle from '@material-ui/core/DialogTitle';
-import CloseIcon from '@material-ui/icons/Close';
 
 import withMobileDialog from '@material-ui/core/withMobileDialog';
 
 import logo24 from './images/logo24.png';
 
-import HeaderBar from './HeaderBar.js';
+import ReceiveInviteDialog from './ReceiveInviteDialog.js';
+import SendInviteDialog from './SendInviteDialog.js';
+
+import AddContactsDrawer from './AddContactsDrawer.js';
+import NewChatDrawer from './NewChatDrawer.js';
 
 function TabContainer(props) {
   const { children } = props;
@@ -100,41 +85,20 @@ const styles = theme => ({
 
 class AllChats extends React.Component {
 
-  static filterContacts(contacts, filter) {
-
-    if (filter === '') {
-      return contacts;
-    }
-
-    let result = {};
-
-    Object.keys(contacts).forEach( letter => {
-      let matches = contacts[letter].filter(
-        p => p.name.toLowerCase().includes(filter.toLowerCase().trim()));
-      if (matches.length > 0) {
-        result[letter] = matches;
-      }
-    });
-    return result;
-  }
-
   constructor(props) {
     super(props);
     // props.match.params.*
-    const { classes, theme, width, } = this.props;
+    const { width, } = this.props;
     const isSmallDevice = width === 'xs' || width === 'sm';
 
     this.isSmallDevice = isSmallDevice;
 
     this.state = {  tabIdx: 0,
                     newChat: this.props.newChat,
-                    newChatContactSearch: (this.isSmallDevice?false:true),
                     menuAnchorElement: null,
                     addContacts: this.props.addContacts,
-                    contactsFilter: '',
                     showReceiveInviteDialog: this.props.showReceiveInvite,
-                    showSendInviteDialogId: null,
-                    newInviteRecipientName: ''
+                    showSendInviteDialogId: null
                   };
   }
 
@@ -188,13 +152,11 @@ class AllChats extends React.Component {
     const newChat = '/new-chat';
     const chat    = '/chat';
 
-    var currentAction, currentChat;
+    var currentChat;
 
     if (currentLocation.slice(0, chat.length) === chat) {
-      currentAction = chat;
       currentChat   = currentLocation.slice(chat.length);
     } else {
-      currentAction = newChat;
       currentChat   = currentLocation.slice(newChat.length);
     }
 
@@ -205,7 +167,6 @@ class AllChats extends React.Component {
 
     this.setState({
         newChat: false,
-        newChatContactSearch: (this.isSmallDevice?false:true),
         menuAnchorElement: null,
         addContacts: true,
       });
@@ -236,8 +197,6 @@ class AllChats extends React.Component {
 
     const isSmallDevice = width === 'xs' || width === 'sm';
 
-    var actionButtonProps = { };
-
     var inviteForDialog = null;
 
     this.props.pendingInvites.forEach(
@@ -257,7 +216,7 @@ class AllChats extends React.Component {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" color="inherit" style={{flexGrow: '1'}}>
-              <img style={{verticalAlign:'middle'}}src={logo24}/> HyperHyperSpace
+              <img style={{verticalAlign:'middle'}}src={logo24} alt='logo'/> HyperHyperSpace
             </Typography>
             <Hidden smDown>
 
@@ -398,6 +357,16 @@ class AllChats extends React.Component {
           </Zoom>
         </Hidden>
 
+        <NewChatDrawer
+          isSmallDevice = {isSmallDevice}
+          open = {this.state.newChat}
+          addContacts = {this.showAddContactsDrawer}
+          hide = {this.hideNewMessageDrawer}
+          contacts = {this.props.contacts}
+        />
+
+        {/*
+
         <Drawer open={this.state.newChat} PaperProps={{style:{width:(isSmallDevice?'100%':'33%')}}}>
           <AppBar position="static" color="primary">
             <Toolbar style={{paddingLeft:'6px', paddingRight:'0px', paddingTop:(isSmallDevice?'0px':'40px')}}>
@@ -450,7 +419,7 @@ class AllChats extends React.Component {
                             <Avatar>
                               <PersonIcon />
                             </Avatar>
-                            <ListItemText disableTypography={true} primary={<Typography variant="h6">{contact.name}</Typography>} secondary={<Typography color="textSecondary" > {/* aca va el status*/} </Typography>}/>
+                            <ListItemText disableTypography={true} primary={<Typography variant="h6">{contact.name}</Typography>} secondary={<Typography color="textSecondary" >  </Typography>}/>
                           </ListItem>
                         </Link>
                       );
@@ -464,7 +433,17 @@ class AllChats extends React.Component {
           </List>
           </Paper>
         </Drawer>
+*/}
+        <AddContactsDrawer
+          open = {this.state.addContacts}
+          isSmallDevice = {isSmallDevice}
+          hide = { this.hideAddContactsDrawer }
+          showSendInvite = { (id) => { this.setState({showSendInviteDialogId:id});}}
+          controller = { this.props.controller }
+          pendingInvites = { this.props.pendingInvites }
 
+        />
+{/*
         <Drawer open={this.state.addContacts} PaperProps={{style:{width:(isSmallDevice?'100%':'33%')}}}>
           <AppBar position="static" color="primary">
             <Toolbar style={{paddingLeft:'6px', paddingRight:'0px', paddingTop:(isSmallDevice?'0px':'40px')}}>
@@ -544,7 +523,15 @@ class AllChats extends React.Component {
             </Grid>
           </Paper>
         </Drawer>
+*/}
+        <SendInviteDialog
+          show = {this.state.showSendInviteDialogId===null? false : true}
+          fullScreen = {this.props.fullScreen}
+          invite = {inviteForDialog}
+          onClose = {() => {this.setState({showSendInviteDialogId: null});}}
+        />
 
+{/*
         <Dialog
                   open={this.state.showSendInviteDialogId===null? false : true}
                   onClose={() => { }}
@@ -554,7 +541,7 @@ class AllChats extends React.Component {
                 >
                   <DialogTitle id="send-invite-link-dialog">{"Send invite to " + (inviteForDialog===null?'':inviteForDialog.receiverName)}</DialogTitle>
                   <DialogContent>
-                    {/*<DialogContentText>*/}
+
                     <TextField
                               id="invite-link"
                               label="Invite link"
@@ -567,7 +554,7 @@ class AllChats extends React.Component {
                               }}
                               variant="outlined"
                     />
-                    {/*</DialogContentText>*/}
+
                   </DialogContent>
                   <DialogActions>
                     <Button onClick={() => { 
@@ -583,7 +570,18 @@ class AllChats extends React.Component {
 
                   </DialogActions>
         </Dialog>
+*/}
 
+        <ReceiveInviteDialog
+          show = {this.state.showReceiveInviteDialog}
+          fullScreen = {this.props.fullScreen}
+          receivedInviteInfo = {this.props.receivedInviteInfo}
+          onClose = {() => {this.setState({'showReceiveInviteDialog':false});}}
+          controller = {this.props.controller}
+        />
+
+
+{/*
         <Dialog
                   open={this.state.showReceiveInviteDialog}
                   onClose={() => { }}
@@ -620,6 +618,8 @@ class AllChats extends React.Component {
 
                   </DialogActions>
         </Dialog>
+
+        */}
 
       </React.Fragment>
     );

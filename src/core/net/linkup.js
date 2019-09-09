@@ -146,8 +146,6 @@ class WebsocketLinkupConnection {
         this.ws.onmessage = (ev) => {
           var message = JSON.parse(ev.data);
 
-          var done = false;
-
           if (message['action'] === 'ping') {
             this.logger.trace('sending pong to ' + this.serverURL);
             this.ws.send(JSON.stringify({'action' : 'pong'}));

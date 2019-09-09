@@ -7,10 +7,6 @@ import withWidth from '@material-ui/core/withWidth';
 import Chat from '../components/Chat.js';
 import AllChats from '../components/AllChats.js';
 
-import ContactsController from '../controllers/ContactsController.js';
-import { InviteInfo } from '../../services/people/contacts.js';
-import ChatController from '../controllers/ChatController.js';
-
 class ChatView extends React.Component {
   constructor(props) {
     super(props);

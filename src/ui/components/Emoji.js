@@ -3,9 +3,10 @@ import React from 'react';
 import twemoji from 'twemoji';
 
 class Emoji extends React.Component {
-  constructor(props) {
+
+  /* constructor(props) {
     super(props);
-  }
+  } useless-constructor */
 
   render() {
 

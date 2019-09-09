@@ -2,14 +2,10 @@ import React from 'react';
 
 import withWidth from '@material-ui/core/withWidth';
 
-import { Redirect } from 'react-router-dom';
-
 import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import AppBar from '@material-ui/core/AppBar';
 import Typography from '@material-ui/core/Typography';
-import Card from '@material-ui/core/Card';
-import CardContent from '@material-ui/core/CardContent';
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
 
@@ -18,7 +14,6 @@ import DialogActions from '@material-ui/core/DialogActions';
 import DialogContent from '@material-ui/core/DialogContent';
 import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
-import withMobileDialog from '@material-ui/core/withMobileDialog';
 
 import CircularProgress from '@material-ui/core/CircularProgress';
 
@@ -86,8 +81,6 @@ class CreateAccountView extends React.Component {
       appBarPosition    = 'absolute';
     }
 
-    const { fullScreen } = this.props;
-
     let boundShowDialog = this.showDialog.bind(this);
 
     return (
@@ -95,7 +88,7 @@ class CreateAccountView extends React.Component {
       <React.Fragment>
 
         <AppBar position={appBarPosition}>
-          <Typography variant="h4" color="inherit" style={{marginTop: '8px', marginBottom: '8px'}}><img style={{verticalAlign:'middle'}}src={logo32}/> Hyper Hyper Space</Typography>
+          <Typography variant="h4" color="inherit" style={{marginTop: '8px', marginBottom: '8px'}}><img style={{verticalAlign:'middle'}}src={logo32} alt='logo'/> Hyper Hyper Space</Typography>
         </AppBar>
         <Paper style={paperStyle}>
 

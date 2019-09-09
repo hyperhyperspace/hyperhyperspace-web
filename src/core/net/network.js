@@ -1,4 +1,4 @@
-import LinkupManager, { Endpoint} from './linkup';
+import { Endpoint} from './linkup';
 import WebRTCConnection from './webrtc';
 
 class NetworkManager {

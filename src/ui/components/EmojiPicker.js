@@ -4,12 +4,8 @@ import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 
 import withWidth from '@material-ui/core/withWidth';
-
-import SwipeableViews from 'react-swipeable-views';
 import Tabs from '@material-ui/core/Tabs';
 import Tab from '@material-ui/core/Tab';
-
-import Button from '@material-ui/core/Button';
 
 import MoodIcon from '@material-ui/icons/Mood';
 import PetsIcon from '@material-ui/icons/Pets';
@@ -144,7 +140,7 @@ class EmojiPicker extends React.Component {
             {/*)}*/}
          {/*</SwipeableViews>*/}
       </Paper>
-     );;
+     );
   }
 
 }

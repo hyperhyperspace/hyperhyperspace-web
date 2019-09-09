@@ -1,13 +1,12 @@
-import { LinkupManager, Endpoint }   from '../net/linkup.js';
+import { LinkupManager }   from '../net/linkup.js';
 import { NetworkManager }  from '../net/network.js';
 import { DeliveryService } from '../net/delivery.js';
 
-import { StorageManager, storable }  from '../data/storage.js';
+import { StorageManager }  from '../data/storage.js';
 import { ReplicationService }     from '../data/replication.js';
 
-import { IdentityService } from './identity.js';
-import { Identity, IdentityKey } from './identity.js';
-import { Account, AccountInstance } from './accounts.js';
+import { IdentityKey } from './identity.js';
+import { Account } from './accounts.js';
 
 import Logger from '../util/logging';
 
@@ -125,7 +124,7 @@ class Peer {
     let account = this.instance.getAccount();
 
     this.deliveryService = new DeliveryService(this,
-                                              this.instance.getAccount().getIdentity(),
+                                              account.getIdentity(),
                                               _LINKUP_SERVER,
                                               this.routeIncomingMessageBound
                                             );

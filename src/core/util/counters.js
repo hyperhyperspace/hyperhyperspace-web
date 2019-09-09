@@ -4,9 +4,6 @@ import Strings from './strings.js';
 const COUNTER_BITS = 64;
 const COUNTER_LEN  = COUNTER_BITS / 4; // we use hexadecimal
 
-const RANDOM_BITS = 40;
-const RANDOM_LEN  = RANDOM_BITS / 4; // we use hexadecimal
-
 class Counters {
 
   // a unique counter is a counter followed by a unique timestamp (unix time + randomness)

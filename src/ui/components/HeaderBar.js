@@ -17,7 +17,7 @@ class HeaderBar extends Component {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" color="inherit">
-            <img src={logo24}/>
+            <img src={logo24} alt='logo'/>
             HyperHyperSpace
           </Typography>
         </Toolbar>

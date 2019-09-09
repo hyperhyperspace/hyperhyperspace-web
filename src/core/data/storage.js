@@ -1,8 +1,7 @@
 import { openDB } from 'idb';
 
-import { Account, AccountInstance } from '../peer/accounts.js';
 import { Crypto } from '../peer/crypto.js';
-import { Identity, IdentityKey } from '../peer/identity.js';
+import { Identity } from '../peer/identity.js';
 import { Types } from './types.js';
 
 import { ReplicationService } from './replication.js';
@@ -232,7 +231,7 @@ class Store {
           return Store.fromStorageFormat(literal, foundDeps, foundKeys);
         } else {
           return Types.deserializeWithType(serial, foundDeps, foundKeys);
-        };
+        }
       });
 
 
@@ -379,14 +378,12 @@ class Store {
       let deps = {};
       let keys = {};
       let external = {};
-      let done = new Set();
 
       var cursor = await this.db.then((db) => db.transaction([_OBJECTS], 'readonly').objectStore(_OBJECTS).index(index).openCursor(range, direction));
 
       while (cursor) {
 
         let literal = cursor.value;
-        let serial = Store.toSerialization(literal);
         let loadPromise = this.loadWithDependencies(literal['fingerprint'], new Set(), Promise.resolve(literal), deps, keys, external);
         deps[literal['fingerprint']] = loadPromise;
         result.push(loadPromise);
@@ -786,13 +783,6 @@ function storable(Class) {
       }
 
       return this.fingerprintWithExtraInfo(extra);
-    }
-
-    _computeDependencyWitnesses() {
-      let witnesses = {};
-      this.dependencies.forEach( dep => {
-
-      });
     }
   }
 }

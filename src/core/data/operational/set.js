@@ -57,7 +57,6 @@ class OperationalSet {
   createRemoveOp(element) {
 
     const elementIds = this.elementToIds.get(element);
-    console.log(elementIds);
     const idsToRemove = elementIds === undefined ? new Set() : Array.from(elementIds).filter(id => !this.removedIds.has(id));
 
     const result = idsToRemove.size === 0 ? null :

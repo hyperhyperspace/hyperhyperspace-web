@@ -2,7 +2,6 @@ import { Types } from '../data/types.js';
 import { storable } from '../data/storage.js';
 import { ReplicatedSet, ReplicatedObjectSet } from '../data/replicated/set.js';
 import { ReplicatedNamespace } from '../data/replicated/namespace.js';
-import { Identity, IdentityKey } from './identity.js';
 
 class AccountBase {
   constructor(identityKey) {

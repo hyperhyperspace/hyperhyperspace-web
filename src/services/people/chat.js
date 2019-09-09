@@ -62,7 +62,6 @@ class ChatService {
     await this.account.pull(this.store);
 
     let datasets  = this.account.getDatasets();
-    let replObjSetType = Types.REPL_OBJECT_SET();
     let replNamespaceType = Types.REPL_NAMESPACE();
     let identity = this.account.getIdentity();
 

@@ -86,15 +86,15 @@ class KeyPair {
   }
 
   generateSignedId() {
-    const uuid = uuid();
-    const sig  = this.sign(uuid + '-' + this.getHash());
-    return uuid + '/' + sig;
+    const id = uuid();
+    const sig  = this.sign(id + '-' + this.getHash());
+    return id + '/' + sig;
   }
 
   checkSignedId(id) {
     const parts = id.split('/');
-    const uuid = id[0];
-    const sig  = id[1];
+    const uuid = parts[0];
+    const sig  = parts[1];
     return this.verify(uuid + '-' + this.getHash(), sig);
   }
 
@@ -237,9 +237,9 @@ class Crypto {
   static randomHexString(length) {
     const step = 4;
     var result = '';
-    while (length >= 4) {
+    while (length >= step) {
       result = result + Crypto.randomHex16bitsWord();
-      length = length - 4;
+      length = length - step;
     }
 
     result = result + Strings.pad((window.crypto.getRandomValues(new Uint16Array(1))[0]).toString(16), 4).substring(4-length, 4);
