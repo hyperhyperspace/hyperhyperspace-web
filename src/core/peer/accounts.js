@@ -3,27 +3,26 @@ import { storable } from '../data/storage.js';
 import { ReplicatedSet, ReplicatedObjectSet } from '../data/replicated/set.js';
 import { ReplicatedNamespace } from '../data/replicated/namespace.js';
 
+import { Identity } from '../../core/peer/identity.js';
+
 class AccountBase {
+
+  static type = 'hhs-account';
+  static storableFields = { identity  : Identity,
+                            instances : ReplicatedObjectSet,
+                            linkup    : ReplicatedSet,
+                            datasets  : ReplicatedNamespace
+  };
+
   constructor(identityKey) {
 
-    this.type = Types.ACCOUNT();
-
     this.initializeStorable();
-
-    this.identity = null;
-    this.instances = null;
-    this.linkup  = null;
-    this.datasets = null;
 
     if (identityKey !== undefined) {
       this.identity = identityKey.deriveIdentity();
       this.instances = new ReplicatedObjectSet(this.identity);
       this.linkup = new ReplicatedSet(this.identity);
       this.datasets = new ReplicatedNamespace(this.identity);
-      this.addDependency(this.identity);
-      this.addDependency(this.instances);
-      this.addDependency(this.linkup);
-      this.addDependency(this.datasets);
 
       this.signForIdentity(this.identity);
     }
@@ -125,42 +124,25 @@ class AccountBase {
   getDatasets() {
     return this.datasets;
   }
-
-  serialize() {
-    return {
-      'identity' : this.identity.fingerprint(),
-      'instances': this.instances.fingerprint(),
-      'linkup'   : this.linkup.fingerprint(),
-      'datasets' : this.datasets.fingerprint(),
-      'type'     : this.type
-    };
-  }
-
-  deserialize(serial) {
-    this.identity  = this.getDependency(serial['identity']);
-    this.instances = this.getDependency(serial['instances']);
-    this.linkup    = this.getDependency(serial['linkup']);
-    this.datasets  = this.getDependency(serial['datasets']);
-  }
 }
 
 const Account = storable(AccountBase);
+Types.registerClass(Account);
 
 class AccountInstanceBase {
+
+  static type = 'hhs-account-instance';
+  static storableFields = { account  : Account,
+                            identity : Identity
+  };
+
   constructor(account, instanceIdentityKey) {
 
-    this.type = Types.ACCOUNT_INSTANCE();
-
     this.initializeStorable();
-
-    this.account = null;
-    this.identity = null;
 
     if (account !== undefined) {
       this.account = account;
       this.identity = instanceIdentityKey.deriveIdentity();
-      this.addDependency(this.account);
-      this.addDependency(this.identity);
       this.signForIdentity(account.getIdentity());
     }
   }
@@ -172,21 +154,9 @@ class AccountInstanceBase {
   getIdentity() {
     return this.identity;
   }
-
-  serialize() {
-    return {
-      'account' : this.account.fingerprint(),
-      'identity': this.identity.fingerprint(),
-      'type'      : this.type
-    };
-  }
-
-  deserialize(serial) {
-    this.account  = this.getDependency(serial['account']);
-    this.identity = this.getDependency(serial['identity']);
-  }
 }
 
 const AccountInstance = storable(AccountInstanceBase);
+Types.registerClass(AccountInstance);
 
 export { Account, AccountInstance };

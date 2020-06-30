@@ -521,13 +521,33 @@ function storable(Class) {
     // initialized object, that super can explicitly call in its constructor in case it
     // needs the storable functionality to construct itself.
 
-    initializeStorable(params) {
+    initializeStorable(instanceParams) {
 
-      if (params === undefined) {
-        params = {}
-      }
+
+      let params = {};
 
       if (this.timestamp === undefined) {
+
+        if (this.type === undefined) {
+          this.type = super.constructor.type;
+        }
+
+        if (super.constructor.storableParams !== undefined) {
+          Object.assign(params, super.constructor.storableParams);
+        }
+
+        if (instanceParams !== undefined) {
+          Object.assign(params, instanceParams);
+        }
+
+        if (super.constructor.storableFields !== undefined) {
+          for (let name of Object.keys(super.constructor.storableFields)) {
+            if (this[name] === undefined) {
+              this[name] = null;
+            }
+          }
+        }
+
         this.tags             = new Set();
         this.dependencies     = {};
         this.signatures       = {};
@@ -634,14 +654,15 @@ function storable(Class) {
 
 
     signWith(identityKey) {
-      // the following is necessary because we want to sign the object
-      // resulting _after_ adding the signature (only the identity is
-      // used for fingerprinting, not the signature per se)
-      this.addSignature(identityKey.deriveIdentity().fingerprint(), '');
-      this.addSignature(identityKey.deriveIdentity().fingerprint(), identityKey.sign(this.fingerprint()));
+      this.signWithMany([identityKey]);
     }
 
     signWithMany(identityKeys) {
+
+      // the following is necessary because we want to sign the object
+      // resulting _after_ adding the signature (only the identity is
+      // used for fingerprinting, not the signature per se)
+
       for (let identityKey of identityKeys) {
         this.addSignature(identityKey.deriveIdentity().fingerprint(), '');
       }
@@ -749,7 +770,10 @@ function storable(Class) {
     }
 
     serialize() {
-      var serial = super.serialize();
+      var serial = super.serialize === undefined?
+        this.defaultSerialize() :
+        super.serialize();
+
       serial['tags']         = Array.from(this.tags).sort();
       serial['dependencies'] = Object.keys(this.dependencies).sort();
       serial['keys']         = Array.from(this.keyFingerprints).sort();
@@ -758,12 +782,88 @@ function storable(Class) {
       return serial;
     }
 
+    defaultSerialize() {
+
+      if (this.type === undefined) {
+        this.type = super.constructor.type;
+      }
+
+      let theClass = Types.classForType(this.type);
+      let storableFields = theClass.storableFields;
+      let serial = {
+        type: this.type
+      };
+
+      if (storableFields !== undefined &&
+          storableFields !== null &&
+          typeof storableFields === 'object') {
+
+        for (let name of Object.keys(storableFields)) {
+
+          if (this[name] !== undefined && this[name] !== null) {
+            let type = storableFields[name];
+            if (type === Types.literal) {
+              serial[name] = this[name];
+            } else {
+              let theclass = Types.classForType(type);
+              if (theclass !== undefined) {
+                serial[name] = this[name].fingerprint();
+                this.addDependency(this[name]);
+              } else {
+                // safely ignore this property.
+              }
+            }
+          }
+        }
+      }
+
+      return serial;
+    }
+
     deserialize(serial) {
       this.tags       = new Set(serial['tags']);
       this.keyFingerprints = new Set(serial['keys']);
       this.timestamp  = serial['timestamp'];
       this.signatures = serial['signatures'];
-      super.deserialize(serial);
+      if (super.deserialize === undefined) {
+        this.defaultDeserialize(serial);
+      } else {
+        super.deserialize(serial);
+      }
+    }
+
+    defaultDeserialize(serial) {
+
+      this.type = serial['type'];
+
+      let theClass = Types.classForType(serial['type']);
+      let storableFields = theClass.storableFields;
+
+      if (storableFields !== undefined &&
+          storableFields !== null &&
+          typeof storableFields === 'object') {
+
+        for (let name of Object.keys(storableFields)) {
+
+          if (serial[name] === undefined) {
+            this[name] = null;
+          } else {
+            let val = serial[name];
+            if (storableFields[name] === Types.literal) {
+              this[name] = val;
+            } else {
+              let valClass = Types.classForType(storableFields[name].type);
+              if (valClass !== undefined) {
+                this[name] = this.getDependency(serial[name]);
+                if (this[name].type !== valClass.type) {
+                  throw new Error('Error deserializing a ' + serial['type'] + ': "' + name + '" should be a ' + valClass.type + ' but is a ' + this[name].type + ' instead.');
+                }
+              }
+            }
+          }
+
+        }
+      }
     }
 
     fullContentHash(parents) {

@@ -1,18 +1,12 @@
 import { StorableValue } from './storage.js';
 import { Identity, IdentityKey } from '../peer/identity.js';
-import { Account, AccountInstance } from '../peer/accounts.js';
 import { ControlOp, DataOp } from './replication.js';
 import { ReplicatedSet, ReplicatedObjectSet } from './replicated/set.js';
 import { ReplicatedValueReference, ReplicatedObjectReference } from './replicated/reference.js';
 import { ReplicatedNamespace } from './replicated/namespace.js';
 import { ReplicatedObjectStream } from './replicated/stream.js';
 
-import { Profile, Invite, InviteReply } from '../../services/people/contacts.js';
-import { ChatMessage } from '../../services/people/chat.js';
-
 const _STORABLE_VALUE     = 'storable-value';
-const _ACCOUNT            = 'account';
-const _ACCOUNT_INSTANCE   = 'account-instance';
 const _IDENTITY           = 'identity';
 const _IDENTITY_KEY       = 'identity-key';
 const _DATA_OP            = 'data-op';
@@ -24,17 +18,16 @@ const _REPL_OBJECT_REF    = 'repl-object-reference';
 const _REPL_NAMESPACE     = 'repl-namespace';
 const _REPL_OBJECT_STREAM = 'repl-object-stream';
 
-const _PROFILE            = 'people-profile';
-const _INVITE             = 'people-invite';
-const _INVITE_REPLY       = 'people-invite-reply';
-
-const _CHAT_MESSAGE       = 'people-chat-message';
-
 class Types {
+
+  static classes = {};
+
+  static registerClass(theclass) {
+    Types.classes[theclass.type] = theclass;
+  }
+
   // core system
   static STORABLE_VALUE()     { return _STORABLE_VALUE; }
-  static ACCOUNT()            { return _ACCOUNT; }
-  static ACCOUNT_INSTANCE()   { return _ACCOUNT_INSTANCE; }
   static IDENTITY()           { return _IDENTITY; }
   static IDENTITY_KEY()       { return _IDENTITY_KEY; }
   static DATA_OP()            { return _DATA_OP; }
@@ -46,26 +39,22 @@ class Types {
   static REPL_NAMESPACE()     { return _REPL_NAMESPACE; }
   static REPL_OBJECT_STREAM() { return _REPL_OBJECT_STREAM; }
 
-  // contacts
-  static PROFILE()            { return _PROFILE; }
-  static INVITE()             { return _INVITE; }
-  static INVITE_REPLY()       { return _INVITE_REPLY; }
+  static literal = 'native-literal';
 
-  // chat
-  static CHAT_MESSAGE()       { return _CHAT_MESSAGE; }
 
-  static constructorForType(type) {
+  static classForType(type) {
     var result = null;
+
+    if (Types.classes[type] !== undefined) {
+      return Types.classes[type];
+    }
+
     if (type === _STORABLE_VALUE) {
       result = StorableValue;
     } else if (type === _IDENTITY_KEY) {
       result = IdentityKey;
     } else if (type === _IDENTITY) {
       result = Identity;
-    } else if (type === _ACCOUNT) {
-      result = Account;
-    } else if (type === _ACCOUNT_INSTANCE) {
-      result = AccountInstance;
     } else if (type === _REPL_SET) {
       result = ReplicatedSet;
     } else if (type === _REPL_OBJECT_SET) {
@@ -82,14 +71,6 @@ class Types {
       result = ReplicatedNamespace;
     } else if (type === _REPL_OBJECT_STREAM) {
       result = ReplicatedObjectStream;
-    } else if (type === _PROFILE) {
-      result = Profile;
-    } else if (type === _INVITE) {
-      result = Invite;
-    } else if (type === _INVITE_REPLY) {
-      result = InviteReply;
-    } else if (type === _CHAT_MESSAGE) {
-      result = ChatMessage;
     }
 
     return result;
@@ -104,7 +85,7 @@ class Types {
 
     // create object of correct type
     if (serial.type !== undefined) {
-      let constr = Types.constructorForType(serial.type);
+      let constr = Types.classForType(serial.type);
 
       if (constr !== null) {
         typed = new constr();

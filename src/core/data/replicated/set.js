@@ -11,6 +11,9 @@ import { Types } from '../types.js';
 */
 
 class ReplicatedSetBase {
+
+  static type = 'repl-set';
+
   constructor(identity, params) {
     this.type = Types.REPL_SET();
 
@@ -64,6 +67,9 @@ class ReplicatedSetBase {
 const ReplicatedSet = replicable(ReplicatedSetBase);
 
 class ReplicatedObjectSetBase {
+
+  static type = 'repl-object-set';
+
   constructor(identity, params) {
     this.type = Types.REPL_OBJECT_SET();
 

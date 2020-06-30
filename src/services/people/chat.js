@@ -2,6 +2,8 @@ import { Types } from '../../core/data/types.js';
 import { storable } from '../../core/data/storage.js';
 import { ReplicationService } from '../../core/data/replication.js';
 
+import { Identity } from '../../core/peer/identity.js';
+
 import Logger from '../../core/util/logging';
 
 const MESSAGE_SETS = 'people.messageSets';
@@ -78,7 +80,7 @@ class ChatService {
 
     this._newMessageCallbackBound = this._newMessageCallback.bind(this);
 
-    this.store.registerTypeCallback(Types.CHAT_MESSAGE(), this._newMessageCallbackBound);
+    this.store.registerTypeCallback(ChatMessage.type, this._newMessageCallbackBound);
 
   }
 
@@ -107,7 +109,7 @@ class ChatService {
   }
 
   getChats() {
-    return this.store.loadAllByType(Types.CHAT_MESSAGE());
+    return this.store.loadAllByType(ChatMessage.type);
   }
 
   addNewMessageCallback(callback) {
@@ -120,42 +122,25 @@ class ChatService {
 }
 
 class ChatMessageBase {
+
+  static type = 'people-chat-message';
+  static storableFields = { sender    : Identity,
+                            recipient : Identity,
+                            content   : Types.literal
+  };
+
   constructor(sender, recipient, content) {
-
-    this.type = Types.CHAT_MESSAGE();
-
-    this.initializeStorable();
 
     if (sender !== undefined) {
       this.sender    = sender;
-      this.addDependency(sender);
       this.recipient = recipient;
-      this.addDependency(recipient);
       this.content  = content;
-    } else {
-      this.sender = null;
-      this.recipient = null;
-      this.content = null;
     }
-  }
-
-  serialize() {
-    return {
-      sender    : this.sender.fingerprint(),
-      recipient : this.recipient.fingerprint(),
-      content   : this.content,
-      type      : this.type
-    };
-  }
-
-  deserialize(serial) {
-    this.sender    = this.getDependency(serial['sender']);
-    this.recipient = this.getDependency(serial['recipient']);
-    this.content   = serial['content'];
   }
 }
 
 const ChatMessage = storable(ChatMessageBase);
+Types.registerClass(ChatMessage);
 
 export { ChatMessage };
 export default ChatService;

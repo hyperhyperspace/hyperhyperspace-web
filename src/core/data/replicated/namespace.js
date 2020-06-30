@@ -19,6 +19,8 @@ import { Crypto } from '../../peer/crypto.js';
 
 class ReplicatedNamespaceBase {
 
+  static type = 'repl-namespace';
+
   constructor(identity, params) {
 
     this.type = Types.REPL_NAMESPACE();
@@ -77,7 +79,7 @@ class ReplicatedNamespaceBase {
     }
 
     let replId = this.getReplicationIdFor(name, containerTypeName);
-    let constr = Types.constructorForType(containerTypeName);
+    let constr = Types.classForType(containerTypeName);
 
     if (params === undefined) {
       params = {};

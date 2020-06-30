@@ -149,6 +149,9 @@ class IdentityKeyBase {
 const IdentityKey = storable(IdentityKeyBase);
 
 class IdentityBase {
+
+  static type = 'identity';
+
   constructor(publicKey, info, parentIdentity) {
 
     this.type = Types.IDENTITY();

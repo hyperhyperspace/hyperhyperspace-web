@@ -27,9 +27,6 @@ class ReceiveInviteDialog extends React.Component {
 
     const { theme } = this.props;
 
-    console.log('Received invite:');
-    console.log(this.props.receivedInviteInfo);
-
     return (
       <Dialog
                 open={this.props.show}

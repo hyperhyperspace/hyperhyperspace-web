@@ -358,11 +358,11 @@ class VerifiedConnection {
 
     window.setTimeout(() => {
       if (!this.rejected && !this.ready()) {
+        this._sendRejection('verification-timeout');
         this.rejected = true;
         if (this.rejectCallback !== null) {
           this.rejectCallback('verification-timeout');
         }
-        this._sendRejection('verification-timeout');
       }
     }, _VERIFICATION_TIMEOUT * 1000);
 

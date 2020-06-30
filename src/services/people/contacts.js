@@ -4,6 +4,8 @@ import { ReplicationService } from '../../core/data/replication.js';
 
 import { ReplicatedNamespace } from '../../core/data/replicated/namespace.js';
 
+import { Identity } from '../../core/peer/identity.js';
+
 import Strings    from '../../core/util/strings.js';
 import { Crypto } from '../../core/peer/crypto.js';
 
@@ -159,7 +161,7 @@ class ContactsService {
 
     this._newProfileCallbackBound = this._newProfileCallback.bind(this);
 
-    this.store.registerTypeCallback(Types.PROFILE(), this._newProfileCallbackBound);
+    this.store.registerTypeCallback(Profile.type, this._newProfileCallbackBound);
 
     await this.pendingInviteReplies.pull(this.store);
 
@@ -309,23 +311,24 @@ class ContactsService {
 }
 
 class InviteBase {
+
+  static type = 'hhs-contacts-invite';
+  static storableFields = { sender        : Identity,
+                            senderLinkups : Types.literal,
+                            receiverName  : Types.literal,
+                            secret        : Types.literal
+
+  };
+
   constructor(sender, receiverName, linkups) {
-
-    this.type = Types.INVITE();
-
-    this.initializeStorable();
 
     if (sender !== undefined) {
       this.sender        = sender;
-      this.addDependency(sender);
       this.senderLinkups = linkups;
       this.receiverName  = receiverName;
       this.secret        = Crypto.randomHexString(16);
     } else {
-      this.sender        = null;
       this.senderLinkups = [];
-      this.receiverName  = null;
-      this.secret        = null;
     }
   }
 
@@ -336,23 +339,6 @@ class InviteBase {
       'l': this.senderLinkups,
       'x': this.secret
     }
-  }
-
-  serialize() {
-    return {
-      'sender'        : this.sender.fingerprint(),
-      'senderLinkups' : this.senderLinkups,
-      'receiverName'  : this.receiverName,
-      'secret'        : this.secret,
-      'type'          : this.type
-    };
-  }
-
-  deserialize(serial) {
-    this.sender        = this.getDependency(serial['sender']);
-    this.senderLinkups = serial['senderLinkups']
-    this.receiverName  = serial['receiverName'];
-    this.secret        = serial['secret'];
   }
 }
 
@@ -367,11 +353,17 @@ class InviteInfo {
 }
 
 class InviteReplyBase {
+
+  static type = 'hhs-contacts-invite-reply';
+  static storableFields = { senderFP        : Types.literal,
+                            senderInfo      : Types.literal,
+                            senderLinkups   : Types.literal,
+                            receiver        : Identity,
+                            receiverLinkups : Types.literal,
+                            secret          : Types.literal
+  };
+
   constructor(inviteInfo, receiver, linkups) {
-
-    this.type = Types.INVITE_REPLY();
-
-    this.initializeStorable();
 
     if (inviteInfo !== undefined) {
       this.senderFP      = inviteInfo['s'];
@@ -379,19 +371,9 @@ class InviteReplyBase {
       this.senderLinkups = inviteInfo['l'];
 
       this.receiver = receiver;
-      this.addDependency(receiver);
       this.receiverLinkups = linkups;
 
       this.secret = inviteInfo['x'];
-    } else {
-      this.senderFP      = null;
-      this.senderInfo    = null;
-      this.senderLinkups = null;
-
-      this.receiver        = null;
-      this.receiverLinkups = null;
-
-      this.secret = null;
     }
   }
 
@@ -404,46 +386,23 @@ class InviteReplyBase {
     };
   }
 
-  serialize() {
-    return {
-      'senderFP'        : this.senderFP,
-      'senderInfo'      : this.senderInfo,
-      'senderLinkups'   : this.senderLinkups,
-      'receiver'        : this.receiver.fingerprint(),
-      'receiverLinkups' : this.receiverLinkups,
-      'secret'          : this.secret,
-      'type'            : this.type
-    };
-  }
-
-  deserialize(serial) {
-    this.senderFP        = serial['senderFP'];
-    this.senderInfo      = serial['senderInfo'];
-    this.senderLinkups   = serial['senderLinkups'];
-    this.receiver        = this.getDependency(serial['receiver']);
-    this.receiverLinkups = serial['receiverLinkups'];
-    this.secret          = serial['secret'];
-  }
 }
+
 class ProfileBase {
 
+  static type = 'hss-contacts-profile';
+  static storableFields = { identity   : Identity,
+                            info       : ReplicatedNamespace
+  };
+  static storableParams = { noTimestamp : true };
+
   constructor(identity) {
-
-    this.type = Types.PROFILE();
-
-    this.initializeStorable({noTimestamp: true});
 
     if (identity !== undefined) {
       this.identity = identity;
 
       let replId  = identity.getIdentityKey().sign(identity.fingerprint() + '//profile');
       this.info   = new ReplicatedNamespace(identity, {replicationId: replId});
-
-      this.addDependency(this.identity);
-      this.addDependency(this.info);
-    } else {
-      this.identity = null;
-      this.info     = null;
     }
   }
 
@@ -483,25 +442,15 @@ class ProfileBase {
     return this.identity;
   }
 
-  serialize() {
-    return {
-      'identity' : this.identity.fingerprint(),
-      'info'     : this.info.fingerprint(),
-      'type'     : this.type
-    };
-  }
-
-  deserialize(serial) {
-    this.identity = this.getDependency(serial['identity']);
-    this.info     = this.getDependency(serial['info']);
-  }
-
 }
 
 
 const Invite      = storable(InviteBase);
+Types.registerClass(Invite);
 const InviteReply = storable(InviteReplyBase);
+Types.registerClass(InviteReply);
 const Profile     = storable(ProfileBase);
+Types.registerClass(Profile);
 
 export { Profile, Invite, InviteReply, InviteInfo };
 export default ContactsService;
