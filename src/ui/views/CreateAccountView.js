@@ -110,7 +110,7 @@ class CreateAccountView extends React.Component {
           <Grid item>
             <form noValidate autoComplete="off" style={{marginTop:'20px'}}>
               <Grid container>
-                    <Grid xs={12} item><TextField autoFocus={true} onChange={(e) => { this.setState({ name: e.target.value }); }} onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); boundShowDialog();}}} {...nameProps} style={{marginLeft:'8px', marginRight:'8px', marginTop: '4px', marginBottom: '12px'}} label="Your name" margin="normal" /></Grid>
+                <Grid xs={12} item><TextField autoFocus={true} onChange={(e) => { this.setState({ name: e.target.value }); }} onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); boundShowDialog();}}} {...nameProps} style={{marginLeft:'8px', marginRight:'8px', marginTop: '4px', marginBottom: '12px'}} label="Your name" margin="normal" /></Grid>
                 {/*<Grid xs={12} item><TextField autoFocus={true} onChange={(e) => {this.setState({name:e.target.value});}} onKeyPress={(e) => {if (e.key === 'Enter') {e.preventDefault();}}}{...nameProps} style={{marginLeft:'8px', marginRight:'8px', marginTop: '4px', marginBottom: '12px'}} label="Device name" margin="normal" value="My computer"/></Grid>*/}
                 <Grid xs={12} item><Button onClick={boundShowDialog}style={{marginLeft:'8px', marginRight:'8px', marginTop: '16px', marginBottom: '4px'}} variant="contained" color="primary">OK, let's go!</Button></Grid>
               </Grid>
